@@ -369,6 +369,14 @@ Example code:
 * elasticityMaxIter (float): (Peer et al. 2018) Maximum solver iterations (default: 100)
 * elasticityMaxError (float): (Peer et al. 2019) Maximum elasticity error allowed by the solver (default: 1.0e-4)
 
+##### Magnetic force
+
+* magneticForceMethod (int): Elasticity method
+  - 0: None
+  - 1: Huang et al. 2019
+* susceptibility (float): Magnetic susceptibility - coefficient for the magnetic susceptibility of the material (default: 1.0)
+* externalField (vec3): Constant External Field Intensity - intensity of the constant external field (default: [0,0,0])
+
 ##### Emitters
 
 * maxEmitterParticles (int): Maximum number of particles the emitter generates. Note that reused particles (see below) are not counted here.

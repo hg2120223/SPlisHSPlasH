@@ -20,6 +20,9 @@ Furthermore we use our own libraries:
 SPlisHSPlasH can export the particle data in the partio and vtk format. If you want to import partio files in Maya, try out our Maya plugin: 
 - [MayaPartioTools](https://github.com/InteractiveComputerGraphics/MayaPartioTools)
 
+If you want to import partio files in Blender, try
+- [BlenderPartioTools](https://github.com/InteractiveComputerGraphics/BlenderPartioTools)
+
 
 **Author**: [Jan Bender](http://www.interactive-graphics.de), **License**: MIT
 
@@ -208,3 +211,5 @@ The following videos were generated using the SPlisHSPlasH library:
 * Tetsuya Takahashi, Yoshinori Dobashi, Issei Fujishiro, Tomoyuki Nishita, and Ming C. Lin. Implicit Formulation for SPH-based Viscous Fluids. Computer Graphics Forum, 34, 2015.
 * Marcel Weiler, Dan Koschier and Jan Bender. Projective Fluids. Proceedings of the 9th International Conference on Motion in Games, ACM, 2016, 79-84
 * Marcel Weiler, Dan Koschier, Magnus Brand and Jan Bender. A Physically Consistent Implicit Viscosity Solver for SPH Fluids. Computer Graphics Forum (Eurographics), 37(2), 2018
+
+
