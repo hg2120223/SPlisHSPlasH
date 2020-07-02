@@ -16,7 +16,7 @@ if (USE_DOUBLE_PRECISION)
 	message("AVX is only supported for single precision.")
 endif (USE_DOUBLE_PRECISION)
 
-cmake_dependent_option(USE_AVX "Use AVX" ON "NOT USE_DOUBLE_PRECISION" OFF)
+cmake_dependent_option(USE_AVX "Use AVX" OFF "NOT USE_DOUBLE_PRECISION" OFF)
 if (USE_AVX)
 	message(STATUS "If your CPU does not support AVX, turn off the USE_AVX flag.")
 	add_definitions(-DUSE_AVX)

@@ -168,12 +168,15 @@ void Simulator_GUI_TweakBar::initSimulationParameterGUI()
 	TweakBarParameters::createParameterObjectGUI(getTweakBar(), (GenParam::ParameterObject*) model->getViscosityBase());
 	TweakBarParameters::createParameterObjectGUI(getTweakBar(), (GenParam::ParameterObject*) model->getVorticityBase());
 	TweakBarParameters::createParameterObjectGUI(getTweakBar(), (GenParam::ParameterObject*) model->getElasticityBase());
-	TwDefine((std::string("TweakBar/FluidModel group='") + model->getId() + "'").c_str());
+    TweakBarParameters::createParameterObjectGUI(getTweakBar(), (GenParam::ParameterObject*) model->getMagneticForceBase());
+
+    TwDefine((std::string("TweakBar/FluidModel group='") + model->getId() + "'").c_str());
 	TwDefine((std::string("TweakBar/'Drag force' group='") + model->getId() + "'").c_str());
 	TwDefine((std::string("TweakBar/'Surface tension' group='") + model->getId() + "'").c_str());
 	TwDefine((std::string("TweakBar/Viscosity group='") + model->getId() + "'").c_str());
 	TwDefine((std::string("TweakBar/Vorticity group='") + model->getId() + "'").c_str());
 	TwDefine((std::string("TweakBar/'Elasticity' group='") + model->getId() + "'").c_str());
+    TwDefine((std::string("TweakBar/'Magnetic force' group='") + model->getId() + "'").c_str());
 }
 
 void Simulator_GUI_TweakBar::initParameterGUI()

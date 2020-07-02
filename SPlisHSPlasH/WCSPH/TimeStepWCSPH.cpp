@@ -9,7 +9,6 @@
 #include "SPlisHSPlasH/BoundaryModel_Koschier2017.h"
 #include "SPlisHSPlasH/BoundaryModel_Bender2019.h"
 
-
 using namespace SPH;
 using namespace std;
 using namespace GenParam;

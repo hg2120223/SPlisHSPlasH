@@ -17,6 +17,7 @@ namespace SPH
 	class VorticityBase;
 	class DragBase;
 	class ElasticityBase;
+	class MagneticForceBase;
 	class EmitterSystem;
 
 	enum FieldType { Scalar = 0, Vector3, Vector6, Matrix3, Matrix6, UInt };
@@ -38,6 +39,7 @@ namespace SPH
 	enum class VorticityMethods { None = 0, Micropolar, VorticityConfinement, NumVorticityMethods };
 	enum class DragMethods { None = 0, Macklin2014, Gissler2017, NumDragMethods };
 	enum class ElasticityMethods { None = 0, Becker2009, Peer2018, NumElasticityMethods };
+	enum class MagneticForceMethods { None = 0, Huang2019, NumMagneticForceMethods };
 
 	enum class ParticleState { Active = 0, AnimatedByEmitter };
 
@@ -55,6 +57,7 @@ namespace SPH
 			static int VISCOSITY_METHOD;
 			static int VORTICITY_METHOD;
 			static int ELASTICITY_METHOD;
+			static int MAGNETIC_FORCE_METHOD;
 
 			static int ENUM_DRAG_NONE;
 			static int ENUM_DRAG_MACKLIN2014;
@@ -81,6 +84,9 @@ namespace SPH
 			static int ENUM_ELASTICITY_NONE;
 			static int ENUM_ELASTICITY_BECKER2009;
 			static int ENUM_ELASTICITY_PEER2018;
+
+			static int ENUM_MAGNETICFORCE_NONE;
+			static int ENUM_MAGNETICFORCE_HUANG2019;
 			
 			FluidModel();
 			FluidModel(const FluidModel&) = delete;
@@ -118,6 +124,8 @@ namespace SPH
 			DragBase *m_drag;
 			ElasticityMethods m_elasticityMethod;
 			ElasticityBase *m_elasticity;
+			MagneticForceMethods m_magneticForceMethod;
+			MagneticForceBase *m_magneticForce;
 			std::vector<FieldDescription> m_fields;
 
 			std::function<void()> m_dragMethodChanged;
@@ -125,6 +133,7 @@ namespace SPH
 			std::function<void()> m_viscosityMethodChanged;
 			std::function<void()> m_vorticityMethodChanged;
 			std::function<void()> m_elasticityMethodChanged;
+			std::function<void()> m_magneticForceMethodChanged;
 
 			Real m_density0;
 			unsigned int m_pointSetIndex;
@@ -187,24 +196,29 @@ namespace SPH
 			void setDragMethod(const int val);
 			int getElasticityMethod() const { return static_cast<int>(m_elasticityMethod); }
 			void setElasticityMethod(const int val);
+			int getMagneticForceMethod() const { return static_cast<int>(m_magneticForceMethod); }
+			void setMagneticForceMethod(const int val);
 
 			SurfaceTensionBase *getSurfaceTensionBase() { return m_surfaceTension; }
 			ViscosityBase *getViscosityBase() { return m_viscosity; }
 			VorticityBase *getVorticityBase() { return m_vorticity; }
 			DragBase *getDragBase() { return m_drag; }
 			ElasticityBase *getElasticityBase() { return m_elasticity; }
+			MagneticForceBase *getMagneticForceBase() { return m_magneticForce; }
 
 			void setDragMethodChangedCallback(std::function<void()> const& callBackFct);
 			void setSurfaceMethodChangedCallback(std::function<void()> const& callBackFct);
 			void setViscosityMethodChangedCallback(std::function<void()> const& callBackFct);
 			void setVorticityMethodChangedCallback(std::function<void()> const& callBackFct);
 			void setElasticityMethodChangedCallback(std::function<void()> const& callBackFct);
+			void setMagneticMethodChangedCallback(std::function<void()> const& callBackFct);
 
 			void computeSurfaceTension();
 			void computeViscosity();
 			void computeVorticity();
 			void computeDragForce();
 			void computeElasticity();
+			void computeMagneticForce();
 
 			void saveState(BinaryFileWriter &binWriter);
 			void loadState(BinaryFileReader &binReader);

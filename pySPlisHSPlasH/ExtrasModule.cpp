@@ -28,7 +28,7 @@ void ExtrasModule(py::module m){
     m_sub_sub.attr("DamBreakModel_2D") = "data/Scenes/DamBreakModel_2D.json";
     m_sub_sub.attr("DamBreakWithObjects") = "data/Scenes/DamBreakWithObjects.json";
     m_sub_sub.attr("DeformableModel") = "data/Scenes/DeformableModel.json";
-    m_sub_sub.attr("DoubleDamBreak") = "data/Scenes/DoubleDamBreak.json";
+    m_sub_sub.attr("DoubleDamBreak") = "/home/jake/Documents/fluids/SPlisHSPlasH/data/Scenes/DoubleDamBreak.json";
     m_sub_sub.attr("DoubleDamBreakMultiPhase") = "data/Scenes/DoubleDamBreakMultiPhase.json";
     m_sub_sub.attr("DoubleDamBreakWithSphere") = "data/Scenes/DoubleDamBreakWithSphere.json";
     m_sub_sub.attr("DragTest") = "data/Scenes/DragTest.json";

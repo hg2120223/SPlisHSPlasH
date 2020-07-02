@@ -1,8 +1,8 @@
 #ifndef __Common_h__
 #define __Common_h__
 
-#include <Eigen/Dense>
 
+#include <Eigen/Dense>
 #ifdef USE_DOUBLE
 typedef double Real;
 

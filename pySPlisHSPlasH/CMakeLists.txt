@@ -1,5 +1,8 @@
+message(STATUS "Here\n")
+
 pybind11_add_module(pysplishsplash
   main.cpp
+  common.h
   AnimationFieldModule.cpp
   BoundaryModelModule.cpp
   ParameterObjectModule.cpp
@@ -23,6 +26,7 @@ pybind11_add_module(pysplishsplash
   ViscosityModule.cpp
   VorticityModule.cpp
   WCSPHModule.cpp
+  MagneticForceModule.cpp
   GUIModule.cpp
   ExtrasModule.cpp
 )

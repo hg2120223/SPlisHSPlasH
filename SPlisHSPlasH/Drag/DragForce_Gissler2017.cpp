@@ -297,7 +297,11 @@ void DragForce_Gissler2017::step()
 			//////////////////////////////////////////////////////////////////////////
 			Real max_v_x = 0.0;
 			const Vector3r &xi = m_model->getPosition(i);
-			forall_fluid_neighbors_in_same_phase(
+            if (i == 0) {
+                std::cout << i << "       " << xi(0,0) << "      " << xi(1,0) << "      " << xi(2,0) << std::endl;
+            }
+
+            forall_fluid_neighbors_in_same_phase(
 				Vector3r xixj = xi - xj;
 				xixj.normalize();
 				const Real x_v = v_i_rel_n.dot(xixj);

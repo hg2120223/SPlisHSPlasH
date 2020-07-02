@@ -434,7 +434,9 @@ void SimulatorBase::initSimulation()
 			model->setViscosityMethodChangedCallback([this, model]() { m_gui->initSimulationParameterGUI(); getSceneLoader()->readMaterialParameterObject(model->getId(), (ParameterObject*)model->getViscosityBase()); });
 			model->setVorticityMethodChangedCallback([this, model]() { m_gui->initSimulationParameterGUI(); getSceneLoader()->readMaterialParameterObject(model->getId(), (ParameterObject*)model->getVorticityBase()); });
 			model->setElasticityMethodChangedCallback([this, model]() { reset(); m_gui->initSimulationParameterGUI(); getSceneLoader()->readMaterialParameterObject(model->getId(), (ParameterObject*)model->getElasticityBase()); });
-		}
+            model->setMagneticMethodChangedCallback([this, model]() { m_gui->initSimulationParameterGUI(); getSceneLoader()->readMaterialParameterObject(model->getId(), (ParameterObject*)model->getMagneticForceBase()); });
+
+        }
 
 		m_gui->initSimulationParameterGUI();
 		Simulation::getCurrent()->setSimulationMethodChangedCallback([this]() { reset(); m_gui->initSimulationParameterGUI(); getSceneLoader()->readParameterObject("Configuration", Simulation::getCurrent()->getTimeStep()); });
@@ -515,8 +517,10 @@ void SimulatorBase::readParameters()
 		m_sceneLoader->readMaterialParameterObject(key, (ParameterObject*) model->getViscosityBase());
 		m_sceneLoader->readMaterialParameterObject(key, (ParameterObject*) model->getVorticityBase());
 		m_sceneLoader->readMaterialParameterObject(key, (ParameterObject*) model->getElasticityBase());
+        m_sceneLoader->readMaterialParameterObject(key, (ParameterObject*) model->getMagneticForceBase());
 
-		for (auto material : m_scene.materials)
+
+        for (auto material : m_scene.materials)
 		{
 			if (material->id == key)
 			{
@@ -551,7 +555,8 @@ void SimulatorBase::setCommandLineParameter()
 			setCommandLineParameter((ParameterObject*)model->getViscosityBase());
  			setCommandLineParameter((ParameterObject*)model->getVorticityBase());
  			setCommandLineParameter((ParameterObject*)model->getElasticityBase());
-		}
+            setCommandLineParameter((ParameterObject*)model->getMagneticForceBase());
+        }
 	}
 }
 
@@ -1993,8 +1998,9 @@ void SimulatorBase::writeParameterState(BinaryFileWriter &binWriter)
 		writeParameterObjectState(binWriter, (ParameterObject*)model->getViscosityBase());
 		writeParameterObjectState(binWriter, (ParameterObject*)model->getVorticityBase());
 		writeParameterObjectState(binWriter, (ParameterObject*)model->getElasticityBase());
+        writeParameterObjectState(binWriter, (ParameterObject*)model->getMagneticForceBase());
 
-		binWriter.write(getColorField(model->getPointSetIndex()));
+        binWriter.write(getColorField(model->getPointSetIndex()));
 		binWriter.write(getColorMapType(model->getPointSetIndex()));
 		binWriter.write(getRenderMinValue(model->getPointSetIndex()));
 		binWriter.write(getRenderMaxValue(model->getPointSetIndex()));
@@ -2056,8 +2062,10 @@ void SimulatorBase::readParameterState(BinaryFileReader &binReader)
  		readParameterObjectState(binReader, (ParameterObject*)model->getViscosityBase());
  		readParameterObjectState(binReader, (ParameterObject*)model->getVorticityBase());
  		readParameterObjectState(binReader, (ParameterObject*)model->getElasticityBase());
- 
-		std::string field;
+        readParameterObjectState(binReader, (ParameterObject*)model->getMagneticForceBase());
+
+
+        std::string field;
 		binReader.read(field);
 		setColorField(model->getPointSetIndex(), field);
 		int type;

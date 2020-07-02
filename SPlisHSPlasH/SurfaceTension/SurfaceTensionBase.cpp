@@ -27,11 +27,6 @@ void SurfaceTensionBase::initParameters()
 	RealParameter* rparam = static_cast<RealParameter*>(getParameter(SURFACE_TENSION));
 	rparam->setMinValue(0.0);
 
-	SURFACE_TENSION_BOUNDARY = createNumericParameter("surfaceTensionBoundary", "Boundary surface tension coefficient", &m_surfaceTensionBoundary);
-	setGroup(SURFACE_TENSION_BOUNDARY, "Surface tension");
-	setDescription(SURFACE_TENSION_BOUNDARY, "Coefficient for the surface tension computation at the boundary");
-	rparam = static_cast<RealParameter*>(getParameter(SURFACE_TENSION_BOUNDARY));
-	rparam->setMinValue(0.0);
 }
 
 

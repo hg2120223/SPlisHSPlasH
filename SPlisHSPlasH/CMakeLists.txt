@@ -130,7 +130,15 @@ set(ELASTICITY_SOURCE_FILES
 	Elasticity/ElasticityBase.cpp
 	Elasticity/Elasticity_Becker2009.cpp
 	Elasticity/Elasticity_Peer2018.cpp
-	)	
+	)
+
+set(MAGNETICFORCE_HEADER_FILES
+		MagneticForce/MagneticForceBase.h
+		MagneticForce/MagneticForce_Huang2019.h)
+
+set(MAGNETICFORCE_SOURCE_FILES
+		MagneticForce/MagneticForceBase.cpp
+		MagneticForce/MagneticForce_Huang2019.cpp)
 	
 set(UTILS_HEADER_FILES
 	Utilities/AVX_math.h
@@ -159,7 +167,7 @@ set(UTILS_SOURCE_FILES
 	Utilities/SDFFunctions.cpp
 	Utilities/SimpleQuadrature.cpp
 	Utilities/WindingNumbers.cpp
-	)	
+)
 	
 add_library(SPlisHSPlasH
 	Common.h
@@ -232,6 +240,9 @@ add_library(SPlisHSPlasH
 	${ELASTICITY_HEADER_FILES}
 	${ELASTICITY_SOURCE_FILES}
 
+	${MAGNETICFORCE_HEADER_FILES}
+	${MAGNETICFORCE_SOURCE_FILES}
+
 	${UTILS_HEADER_FILES}
 	${UTILS_SOURCE_FILES}
 )
@@ -249,10 +260,12 @@ target_include_directories(SPlisHSPlasH PUBLIC
 	${NEIGHBORHOOD_SEARCH_INCLUDE_DIR}
 	${GENERICPARAMETERS_INCLUDE_DIR}
 	${DISCREGRID_INCLUDE_DIR}
+	magnetic-force
 )
 
 target_link_libraries(SPlisHSPlasH
 	PUBLIC Utilities tinyexpr
+	magnetic_solver
 	INTERFACE
 	${NEIGHBORHOOD_SEARCH_LIBRARIES}
 	${DISCREGRID_LIBRARIES}
@@ -280,6 +293,8 @@ source_group("Header Files\\Drag" FILES ${DRAG_HEADER_FILES})
 source_group("Source Files\\Drag" FILES ${DRAG_SOURCE_FILES})
 source_group("Header Files\\Elasticity" FILES ${ELASTICITY_HEADER_FILES})
 source_group("Source Files\\Elasticity" FILES ${ELASTICITY_SOURCE_FILES})
+source_group("Header Files\\MagneticForce" FILES ${MAGNETICFORCE_HEADER_FILES})
+source_group("Source Files\\MagneticForce" FILES ${MAGNETICFORCE_HEADER_FILES})
 source_group("Header Files\\Utils" FILES ${UTILS_HEADER_FILES})
 source_group("Source Files\\Utils" FILES ${UTILS_SOURCE_FILES})
 

@@ -28,6 +28,8 @@
 #include "Elasticity/ElasticityBase.h"
 #include "Elasticity/Elasticity_Becker2009.h"
 #include "Elasticity/Elasticity_Peer2018.h"
+#include "MagneticForce/MagneticForceBase.h"
+#include "MagneticForce/MagneticForce_Huang2019.h"
 
 
 using namespace SPH;
@@ -41,6 +43,7 @@ int FluidModel::SURFACE_TENSION_METHOD = -1;
 int FluidModel::VISCOSITY_METHOD = -1;
 int FluidModel::VORTICITY_METHOD = -1;
 int FluidModel::ELASTICITY_METHOD = -1;
+int FluidModel::MAGNETIC_FORCE_METHOD = -1;
 int FluidModel::ENUM_DRAG_NONE = -1;
 int FluidModel::ENUM_DRAG_MACKLIN2014 = -1;
 int FluidModel::ENUM_DRAG_GISSLER2017 = -1;
@@ -62,6 +65,8 @@ int FluidModel::ENUM_VORTICITY_VC = -1;
 int FluidModel::ENUM_ELASTICITY_NONE = -1;
 int FluidModel::ENUM_ELASTICITY_BECKER2009 = -1;
 int FluidModel::ENUM_ELASTICITY_PEER2018 = -1;
+int FluidModel::ENUM_MAGNETICFORCE_NONE = -1;
+int FluidModel::ENUM_MAGNETICFORCE_HUANG2019 = -1;
 
 
 FluidModel::FluidModel() :
@@ -94,6 +99,8 @@ FluidModel::FluidModel() :
 	m_elasticityMethod = ElasticityMethods::None;
 	m_elasticity = nullptr;
 	m_elasticityMethodChanged = nullptr;
+	m_magneticForce = nullptr;
+	m_magneticForceMethod = MagneticForceMethods::None;
 
 	addField({ "id", FieldType::UInt, [&](const unsigned int i) -> unsigned int* { return &getParticleId(i); }, true });
 	addField({ "position", FieldType::Vector3, [&](const unsigned int i) -> Real* { return &getPosition(i)[0]; }, true });
@@ -113,6 +120,7 @@ FluidModel::~FluidModel(void)
 	delete m_vorticity;
 	delete m_viscosity;
 	delete m_elasticity;
+	delete m_magneticForce;
 
 	releaseFluidParticles();
 }
@@ -203,6 +211,16 @@ void FluidModel::initParameters()
 	enumParam->addEnumValue("None", ENUM_ELASTICITY_NONE);
 	enumParam->addEnumValue("Becker et al. 2009", ENUM_ELASTICITY_BECKER2009);
 	enumParam->addEnumValue("Peer et al. 2018", ENUM_ELASTICITY_PEER2018);
+
+    ParameterBase::GetFunc<int> getMagneticForceFct = std::bind(&FluidModel::getMagneticForceMethod, this);
+    ParameterBase::SetFunc<int> setMagneticForceFct = std::bind(&FluidModel::setMagneticForceMethod, this, std::placeholders::_1);
+    MAGNETIC_FORCE_METHOD = createEnumParameter("magneticForceMethod", "Magnetic Force method", getMagneticForceFct, setMagneticForceFct);
+    setGroup(MAGNETIC_FORCE_METHOD, "Magnetic Force");
+    setDescription(MAGNETIC_FORCE_METHOD, "Method to compute magnetic forces.");
+    enumParam = static_cast<EnumParameter*>(getParameter(MAGNETIC_FORCE_METHOD));
+    enumParam->addEnumValue("None", ENUM_MAGNETICFORCE_NONE);
+    enumParam->addEnumValue("Huang et al. 2019", ENUM_MAGNETICFORCE_HUANG2019);
+
 }
 
 
@@ -242,6 +260,8 @@ void FluidModel::reset()
 		m_drag->reset();
 	if (m_elasticity)
 		m_elasticity->reset();
+	if (m_magneticForce)
+	    m_magneticForce->reset();
 
 	m_emitterSystem->reset();
 }
@@ -361,6 +381,8 @@ void FluidModel::performNeighborhoodSearchSort()
 		m_drag->performNeighborhoodSearchSort();
 	if (m_elasticity)
 		m_elasticity->performNeighborhoodSearchSort();
+	if (m_magneticForce)
+	    m_magneticForce->performNeighborhoodSearchSort();
 }
 
 void SPH::FluidModel::setDensity0(const Real v)
@@ -418,6 +440,11 @@ void FluidModel::setElasticityMethodChangedCallback(std::function<void()> const&
 	m_elasticityMethodChanged = callBackFct;
 }
 
+void FluidModel::setMagneticMethodChangedCallback(const std::function<void ()> &callBackFct)
+{
+    m_magneticForceMethodChanged = callBackFct;
+}
+
 void FluidModel::computeSurfaceTension()
 {
 	if (m_surfaceTension)
@@ -446,6 +473,12 @@ void FluidModel::computeElasticity()
 {
 	if (m_elasticity)
 		m_elasticity->step();
+}
+
+void FluidModel::computeMagneticForce()
+{
+    if (m_magneticForce)
+        m_magneticForce->step();
 }
 
 void FluidModel::emittedParticles(const unsigned int startIndex)
@@ -603,6 +636,30 @@ void FluidModel::setElasticityMethod(const int val)
 		m_elasticityMethodChanged();
 }
 
+void FluidModel::setMagneticForceMethod(const int val)
+{
+    MagneticForceMethods mfm = static_cast<MagneticForceMethods>(val);
+    if ((mfm < MagneticForceMethods::None) || (mfm >= MagneticForceMethods::NumMagneticForceMethods))
+        mfm = MagneticForceMethods::None;
+
+    if (mfm == m_magneticForceMethod)
+        return;
+
+    delete m_magneticForce;
+    m_magneticForce = nullptr;
+
+    m_magneticForceMethod = mfm;
+
+    if (m_magneticForceMethod == MagneticForceMethods::Huang2019)
+        m_magneticForce = new MagneticForce_Huang2019(this);
+
+    if (m_magneticForce != nullptr)
+        m_magneticForce->init();
+
+    if (m_magneticForceMethodChanged != nullptr)
+        m_magneticForceMethodChanged();
+}
+
 
 void FluidModel::addField(const FieldDescription &field)
 {
@@ -637,6 +694,9 @@ void SPH::FluidModel::saveState(BinaryFileWriter &binWriter)
 		m_drag->saveState(binWriter);
 	if (m_elasticity)
 		m_elasticity->saveState(binWriter);
+	if (m_magneticForce)
+	    m_magneticForce->saveState(binWriter);
+
 	m_emitterSystem->saveState(binWriter);
 }
 
@@ -659,6 +719,8 @@ void SPH::FluidModel::loadState(BinaryFileReader &binReader)
 		m_drag->loadState(binReader);
 	if (m_elasticity)
 		m_elasticity->loadState(binReader);
+    if (m_magneticForce)
+        m_magneticForce->loadState(binReader);
 
 	m_emitterSystem->loadState(binReader);
 }

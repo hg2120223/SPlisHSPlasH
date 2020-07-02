@@ -10,6 +10,7 @@
 #include <SPlisHSPlasH/Vorticity/VorticityBase.h>
 #include <SPlisHSPlasH/Drag/DragBase.h>
 #include <SPlisHSPlasH/Elasticity/ElasticityBase.h>
+#include <SPlisHSPlasH/MagneticForce/MagneticForceBase.h>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/functional.h>
@@ -103,6 +104,14 @@ void FluidModelModule(py::module m_sub){
             .value("NumElasticityMethods", SPH::ElasticityMethods::NumElasticityMethods);
 
     // ---------------------------------------
+    // Enum class Magnetic Force Methods
+    // ---------------------------------------
+    py::enum_<SPH::MagneticForceMethods>(m_sub, "MagneticForceMethods")
+            .value("None", SPH::MagneticForceMethods::None)
+            .value("Huang2019", SPH::MagneticForceMethods::Huang2019)
+            .value("NumMagneticForceMethods", SPH::MagneticForceMethods::NumMagneticForceMethods);
+
+    // ---------------------------------------
     // Enum class Particle State
     // ---------------------------------------
     py::enum_<SPH::ParticleState>(m_sub, "ParticleState")
@@ -148,7 +157,11 @@ void FluidModelModule(py::module m_sub){
 		.def_readwrite_static("ENUM_ELASTICITY_BECKER2009", &SPH::FluidModel::ENUM_ELASTICITY_BECKER2009)
 		.def_readwrite_static("ENUM_ELASTICITY_PEER2018", &SPH::FluidModel::ENUM_ELASTICITY_PEER2018)
 
-		.def(py::init<>())
+		.def_readwrite_static("ENUM_MAGNETICFORCE_NONE", &SPH::FluidModel::ENUM_MAGNETICFORCE_NONE)
+		.def_readwrite_static("ENUM_MAGNETICFORCE_HUANG2019", &SPH::FluidModel::ENUM_MAGNETICFORCE_HUANG2019)
+
+
+            .def(py::init<>())
 		.def("init", &SPH::FluidModel::init)
 		.def("getId", &SPH::FluidModel::getId)
 		.def("getDensity0", &SPH::FluidModel::getDensity0)
@@ -182,25 +195,32 @@ void FluidModelModule(py::module m_sub){
 		.def("setDragMethod", &SPH::FluidModel::setDragMethod)
 		.def("getElasticityMethod", &SPH::FluidModel::getElasticityMethod)
 		.def("setElasticityMethod", &SPH::FluidModel::setElasticityMethod)
-		.def("setElasticityMethod", &SPH::FluidModel::setElasticityMethod)
+		.def("getMagneticForceMethod", &SPH::FluidModel::getMagneticForceMethod)
+		.def("setMagneticForceMethod", &SPH::FluidModel::setMagneticForceMethod)
 
 		.def("getSurfaceTensionBase", &SPH::FluidModel::getSurfaceTensionBase, py::return_value_policy::reference_internal)
 		.def("getViscosityBase", &SPH::FluidModel::getViscosityBase, py::return_value_policy::reference_internal)
 		.def("getVorticityBase", &SPH::FluidModel::getVorticityBase, py::return_value_policy::reference_internal)
 		.def("getDragBase", &SPH::FluidModel::getDragBase, py::return_value_policy::reference_internal)
 		.def("getElasticityBase", &SPH::FluidModel::getElasticityBase, py::return_value_policy::reference_internal)
+		.def("getElasticityBase", &SPH::FluidModel::getElasticityBase, py::return_value_policy::reference_internal)
+		.def("getMagneticForceBase", &SPH::FluidModel::getMagneticForceBase, py::return_value_policy::reference_internal)
+
 
 		.def("setDragMethodChangedCallback", &SPH::FluidModel::setDragMethodChangedCallback)
 		.def("setSurfaceMethodChangedCallback", &SPH::FluidModel::setSurfaceMethodChangedCallback)
 		.def("setViscosityMethodChangedCallback", &SPH::FluidModel::setViscosityMethodChangedCallback)
 		.def("setVorticityMethodChangedCallback", &SPH::FluidModel::setVorticityMethodChangedCallback)
 		.def("setElasticityMethodChangedCallback", &SPH::FluidModel::setElasticityMethodChangedCallback)
+		.def("setMagneticMethodChangedCallback", &SPH::FluidModel::setMagneticMethodChangedCallback)
 
 		.def("computeSurfaceTension", &SPH::FluidModel::computeSurfaceTension)
 		.def("computeViscosity", &SPH::FluidModel::computeViscosity)
 		.def("computeVorticity", &SPH::FluidModel::computeVorticity)
 		.def("computeDragForce", &SPH::FluidModel::computeDragForce)
 		.def("computeElasticity", &SPH::FluidModel::computeElasticity)
+		.def("computeMagneticForce", &SPH::FluidModel::computeMagneticForce)
+
 
 		.def("saveState", &SPH::FluidModel::saveState)
 		.def("loadState", &SPH::FluidModel::loadState)

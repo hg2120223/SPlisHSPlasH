@@ -468,6 +468,7 @@ void Simulation::computeNonPressureForces()
 		fm->computeVorticity();
 		fm->computeDragForce();
 		fm->computeElasticity();
+		fm->computeMagneticForce();
 	}
 	STOP_TIMING_AVG
 }
