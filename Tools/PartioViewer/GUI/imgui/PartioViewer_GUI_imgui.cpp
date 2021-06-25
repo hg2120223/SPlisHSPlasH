@@ -35,6 +35,7 @@ PartioViewer_GUI_imgui::PartioViewer_GUI_imgui(PartioViewer *viewer) :
 
 PartioViewer_GUI_imgui::~PartioViewer_GUI_imgui(void)
 {	
+	imguiParameters::cleanup();
 }
 
 void PartioViewer_GUI_imgui::init()
@@ -54,6 +55,7 @@ void PartioViewer_GUI_imgui::init()
 	MiniGL::addKeyFunc('j', std::bind(&PartioViewer::generateSequence, m_viewer));
 	MiniGL::addKeyFunc(' ', [&] { m_viewer->setPause(!m_viewer->getPause()); });
 	MiniGL::addKeyFunc('r', [&] { m_viewer->reset(); update();  });
+	MiniGL::addKeyFunc('m', [&] { determineMinMaxValues(); });
 
 	MiniGL::setClientIdleFunc(std::bind(&PartioViewer::timeStep, m_viewer));	
 	MiniGL::setClientDestroyFunc(std::bind(&PartioViewer_GUI_imgui::destroy, this));
@@ -85,6 +87,7 @@ void PartioViewer_GUI_imgui::addOptions(cxxopts::Options &options)
  	options.add_options()
 		("camPos", "Camera position (e.g. --camPos \"0 1 5\")", cxxopts::value<Vector3r>()->default_value("0 3 10"))
 		("camLookat", "Camera lookat (e.g. --camLookat \"0 0 0\")", cxxopts::value<Vector3r>()->default_value("0 0 0"))
+		("showBBox", "Show bounding box.")
  		;
 }
 
@@ -95,6 +98,8 @@ void PartioViewer_GUI_imgui::parseOptions(cxxopts::ParseResult &result)
 
 	if (result.count("camLookat"))
 		m_camLookat = result["camLookat"].as<Vector3r>();
+
+	m_showBBox = result.count("showBBox") != 0;
 }
 
 void PartioViewer_GUI_imgui::initImgui()
@@ -233,7 +238,7 @@ void PartioViewer_GUI_imgui::initParameterGUI()
 			{
 				Partio::ParticleAttribute attr;
 				fluids[m_currentFluidModel].partioData->attributeInfo(i, attr);
-				if ((attr.type == Partio::FLOAT) || (attr.type == Partio::VECTOR))
+				if ((attr.type == Partio::FLOAT) || (attr.type == Partio::VECTOR) || (attr.type == Partio::INT))
 				{
 					m_mapColorField2Attr[idx] = i;
 					eparam->items.push_back(attr.name);
@@ -242,7 +247,11 @@ void PartioViewer_GUI_imgui::initParameterGUI()
 			}
 
 			eparam->getFct = [this]() -> int { return m_viewer->getFluids()[m_currentFluidModel].m_colorField; };
-			eparam->setFct = [this](int v) { m_viewer->getFluids()[m_currentFluidModel].m_colorField = v; initParameterGUI(); };
+			eparam->setFct = [this](int v) { 
+				m_viewer->getFluids()[m_currentFluidModel].m_colorField = v; 
+				determineMinMaxValues();
+				m_viewer->updateScalarField();
+			};
 			imguiParameters::addParam("Visualization", "", eparam);
 		}
 
@@ -255,6 +264,9 @@ void PartioViewer_GUI_imgui::initParameterGUI()
 			param->items.push_back("None");
 			param->items.push_back("Jet");
 			param->items.push_back("Plasma");
+			param->items.push_back("CoolWarm");
+			param->items.push_back("BlueWhiteRed");
+			param->items.push_back("Seismic");
 			param->getFct = [this]() -> int { return m_viewer->getFluids()[m_currentFluidModel].m_colorMapType; };
 			param->setFct = [this](int v) { m_viewer->getFluids()[m_currentFluidModel].m_colorMapType = v; };
 			imguiParameters::addParam("Visualization", "", param);
@@ -275,6 +287,13 @@ void PartioViewer_GUI_imgui::initParameterGUI()
 			param2->getFct = [this]() -> Real { return  m_viewer->getFluids()[m_currentFluidModel].m_renderMaxValue; };
 			param2->setFct = [this](Real v) { m_viewer->getFluids()[m_currentFluidModel].m_renderMaxValue = v; };
 			imguiParameters::addParam("Visualization", "", param2);
+
+			imguiParameters::imguiFunctionParameter* param3 = new imguiParameters::imguiFunctionParameter();
+			param3->description = "Recompute min and max values for color-coding the color field in the rendering process.";
+			param3->label = "Rescale";
+			param3->readOnly = false;
+			param3->function = [this]() { determineMinMaxValues(); };
+			imguiParameters::addParam("Visualization", "", param3);
 		}
 	}
 
@@ -319,6 +338,7 @@ void PartioViewer_GUI_imgui::renderScene()
 		PartioViewer_OpenGL::hsvToRgb(0.61f - 0.1f*i, 0.66f, 0.9f, fluidColor);
 		PartioViewer_OpenGL::render(fluids[i], m_viewer->getParticleRadius(), fluidColor, 
 			fluids[i].m_colorMapType, m_mapColorField2Attr[fluids[i].m_colorField],
+			m_viewer->getScalarField(i),
 			fluids[i].m_renderMinValue, fluids[i].m_renderMaxValue, m_viewer->getUsePlane());
 	}
 
@@ -334,6 +354,42 @@ void PartioViewer_GUI_imgui::renderScene()
 		PartioViewer_OpenGL::renderAABB(m_viewer->getFluidBoundingBox(), col);
 
 	update();
+}
+
+void PartioViewer_GUI_imgui::determineMinMaxValues()
+{
+	if (m_viewer->getFluids().size() > 0)
+	{
+		auto &fluid = m_viewer->getFluids()[m_currentFluidModel];
+		const unsigned int nParticles = (unsigned int)fluid.partioData->numParticles();
+
+		Partio::ParticleAttribute attr;
+		fluid.partioData->attributeInfo(fluid.m_colorField, attr);
+
+		float minValue = FLT_MAX;
+		float maxValue = FLT_MIN;
+		for (unsigned int i = 0u; i < nParticles; i++)
+		{
+			if (attr.type == Partio::VECTOR)
+			{
+				const Eigen::Map<const Eigen::Vector3f> vec(fluid.partioData->data<float>(attr, i));
+				minValue = std::min(minValue, vec.norm());
+				maxValue = std::max(maxValue, vec.norm());
+			}
+			else if (attr.type == Partio::FLOAT)
+			{
+				minValue = std::min(minValue, *fluid.partioData->data<float>(attr, i));
+				maxValue = std::max(maxValue, *fluid.partioData->data<float>(attr, i));
+			}
+			else if (attr.type == Partio::INT)
+			{
+				minValue = std::min(minValue, static_cast<float>(*fluid.partioData->data<int>(attr, i)));
+				maxValue = std::max(maxValue, static_cast<float>(*fluid.partioData->data<int>(attr, i)));
+			}
+		}
+		fluid.m_renderMinValue = minValue;
+		fluid.m_renderMaxValue = maxValue;
+	}
 }
 
 void PartioViewer_GUI_imgui::render()

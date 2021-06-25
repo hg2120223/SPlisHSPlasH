@@ -8,6 +8,9 @@
 #include "NeighborhoodSearch.h"
 #include "BoundaryModel.h"
 #include "AnimationFieldSystem.h"
+#ifdef USE_DEBUG_TOOLS
+#include "SPlisHSPlasH/Utilities/DebugTools.h"
+#endif
 
 
 /** Loop over the fluid neighbors of all fluid phases. 
@@ -161,7 +164,7 @@ for (unsigned int pid = 0; pid < nBoundaries; pid++) \
 
 namespace SPH
 {
-	enum class SimulationMethods { WCSPH = 0, PCISPH, PBF, IISPH, DFSPH, PF, NumSimulationMethods };
+	enum class SimulationMethods { WCSPH = 0, PCISPH, PBF, IISPH, DFSPH, PF, ICSPH, NumSimulationMethods };
 	enum class BoundaryHandlingMethods { Akinci2012 = 0, Koschier2017, Bender2019, NumSimulationMethods };
 
 	/** \brief Class to manage the current simulation time and the time step size. 
@@ -208,6 +211,7 @@ namespace SPH
 		static int ENUM_SIMULATION_IISPH;
 		static int ENUM_SIMULATION_DFSPH;
 		static int ENUM_SIMULATION_PF;
+		static int ENUM_SIMULATION_ICSPH;
 
 		static int BOUNDARY_HANDLING_METHOD;
 		static int ENUM_AKINCI2012;
@@ -215,6 +219,13 @@ namespace SPH
 		static int ENUM_BENDER2019;
 
 		typedef PrecomputedKernel<CubicKernel, 10000> PrecomputedCubicKernel;
+
+		struct NonPressureForceMethod
+		{
+			std::string m_name;
+			std::function<NonPressureForceBase* (FluidModel*)> m_creator;
+			int m_id;
+		};
 
 	protected:
 		std::vector<FluidModel*> m_fluidModels;
@@ -239,8 +250,20 @@ namespace SPH
 		bool m_enableZSort;
 		std::function<void()> m_simulationMethodChanged;		
 		int m_boundaryHandlingMethod;
+		std::vector<NonPressureForceMethod> m_dragMethods;
+		std::vector<NonPressureForceMethod> m_elasticityMethods;
+		std::vector<NonPressureForceMethod> m_surfaceTensionMethods;
+		std::vector<NonPressureForceMethod> m_vorticityMethods;
+		std::vector<NonPressureForceMethod> m_viscoMethods;
+		std::vector<NonPressureForceMethod> m_magneticForceMethods;
+		bool m_simulationIsInitialized;
+#ifdef USE_DEBUG_TOOLS
+		DebugTools* m_debugTools;
+#endif
 
 		virtual void initParameters();
+
+		void registerNonpressureForces();
 		
 	private:
 		static Simulation *current;
@@ -252,6 +275,13 @@ namespace SPH
 		~Simulation ();
 
 		void init(const Real particleRadius, const bool sim2D);
+
+		/** This function is called after the simulation scene is loaded and all
+		* parameters are initialized. While reading a scene file several parameters 
+		* can change. The deferred init function should initialize all values which 
+		* depend on these parameters. 
+		*/
+		void deferredInit();
 		void reset();
 
 		// Singleton
@@ -280,6 +310,9 @@ namespace SPH
 		int getGradKernel() const { return m_gradKernelMethod; }
 		void setGradKernel(int val);
 
+		int isSimulationInitialized() const { return m_simulationIsInitialized; }
+		void setSimulationInitialized(int val);
+
 		FORCE_INLINE Real W_zero() const { return m_W_zero; }
 		FORCE_INLINE Real W(const Vector3r &r) const { return m_kernelFct(r); }
 		FORCE_INLINE Vector3r gradW(const Vector3r &r) { return m_gradKernelFct(r); }
@@ -293,6 +326,8 @@ namespace SPH
 
 		bool is2DSimulation() { return m_sim2D; }
 		bool zSortEnabled() { return m_enableZSort; }
+
+		void initKernels();
 
 		void setParticleRadius(Real val);
 		Real getParticleRadius() const { return m_particleRadius; }
@@ -321,6 +356,29 @@ namespace SPH
 
 		void saveState(BinaryFileWriter &binWriter);
 		void loadState(BinaryFileReader &binReader);
+
+		void addDragMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_dragMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getDragMethods() { return m_dragMethods; }
+
+		void addElasticityMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_elasticityMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getElasticityMethods() { return m_elasticityMethods; }
+
+		void addSurfaceTensionMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_surfaceTensionMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getSurfaceTensionMethods() { return m_surfaceTensionMethods; }
+
+		void addViscosityMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_viscoMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getViscosityMethods() { return m_viscoMethods; }
+
+		void addVorticityMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_vorticityMethods.push_back({ name, creator, -1 }); }
+		std::vector<NonPressureForceMethod>& getVorticityMethods() { return m_vorticityMethods; }
+
+        void addMagneticForceMethod(const std::string& name, const std::function<NonPressureForceBase* (FluidModel*)>& creator) { m_magneticForceMethods.push_back({ name, creator, -1 }); }
+        std::vector<NonPressureForceMethod>& getMagneticForceMethods() { return m_magneticForceMethods; }
+
+#ifdef USE_DEBUG_TOOLS
+		DebugTools* getDebugTools() { return m_debugTools; }
+		void createDebugTools() { m_debugTools = new DebugTools(); m_debugTools->init(); }
+#endif
 
 		FORCE_INLINE unsigned int numberOfPointSets() const
 		{

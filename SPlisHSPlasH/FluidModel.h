@@ -71,13 +71,6 @@ namespace SPH
 			name(n), type(t), getFct(fct), storeData(s) { }
 	};
 
-	enum class SurfaceTensionMethods { None = 0, Becker2007, Akinci2013, He2014, NumSurfaceTensionMethods };
-	enum class ViscosityMethods { None = 0, Standard, XSPH, Bender2017, Peer2015, Peer2016, Takahashi2015, Weiler2018, NumViscosityMethods };
-	enum class VorticityMethods { None = 0, Micropolar, VorticityConfinement, NumVorticityMethods };
-	enum class DragMethods { None = 0, Macklin2014, Gissler2017, NumDragMethods };
-	enum class ElasticityMethods { None = 0, Becker2009, Peer2018, NumElasticityMethods };
-	enum class MagneticForceMethods { None = 0, Huang2019, NumMagneticForceMethods };
-
 	enum class ParticleState { Active = 0, AnimatedByEmitter };
 
 	/** \brief The fluid model stores the particle and simulation information 
@@ -96,41 +89,18 @@ namespace SPH
 			static int ELASTICITY_METHOD;
 			static int MAGNETIC_FORCE_METHOD;
 
-			static int ENUM_DRAG_NONE;
-			static int ENUM_DRAG_MACKLIN2014;
-			static int ENUM_DRAG_GISSLER2017;
-
-			static int ENUM_SURFACETENSION_NONE;
-			static int ENUM_SURFACETENSION_BECKER2007;
-			static int ENUM_SURFACETENSION_AKINCI2013;
-			static int ENUM_SURFACETENSION_HE2014;
-
-			static int ENUM_VISCOSITY_NONE;
-			static int ENUM_VISCOSITY_STANDARD;
-			static int ENUM_VISCOSITY_XSPH;
-			static int ENUM_VISCOSITY_BENDER2017;
-			static int ENUM_VISCOSITY_PEER2015;
-			static int ENUM_VISCOSITY_PEER2016;
-			static int ENUM_VISCOSITY_TAKAHASHI2015;
-			static int ENUM_VISCOSITY_WEILER2018;
-
-			static int ENUM_VORTICITY_NONE;
-			static int ENUM_VORTICITY_MICROPOLAR;
-			static int ENUM_VORTICITY_VC;
-
-			static int ENUM_ELASTICITY_NONE;
-			static int ENUM_ELASTICITY_BECKER2009;
-			static int ENUM_ELASTICITY_PEER2018;
-
-			static int ENUM_MAGNETICFORCE_NONE;
-			static int ENUM_MAGNETICFORCE_HUANG2019;
-			
 			FluidModel();
 			FluidModel(const FluidModel&) = delete;
             FluidModel& operator=(const FluidModel&) = delete;
 			virtual ~FluidModel();
 
 			void init();
+			/** This function is called after the simulation scene is loaded and all
+			* parameters are initialized. While reading a scene file several parameters
+			* can change. The deferred init function should initialize all values which
+			* depend on these parameters.
+			*/
+			void deferredInit();
 
 			std::string getId() const { return m_id; }
 
@@ -157,17 +127,17 @@ namespace SPH
 			std::vector<unsigned int> m_precompIndicesSamePhase;
 #endif
 
-			SurfaceTensionMethods m_surfaceTensionMethod;
+			unsigned int m_surfaceTensionMethod;
 			SurfaceTensionBase *m_surfaceTension;
-			ViscosityMethods m_viscosityMethod;
+			unsigned int m_viscosityMethod;
 			ViscosityBase *m_viscosity;
-			VorticityMethods m_vorticityMethod;
+			unsigned int m_vorticityMethod;
 			VorticityBase *m_vorticity;
-			DragMethods m_dragMethod;
+			unsigned int m_dragMethod;
 			DragBase *m_drag;
-			ElasticityMethods m_elasticityMethod;
+			unsigned int m_elasticityMethod;
 			ElasticityBase *m_elasticity;
-			MagneticForceMethods m_magneticForceMethod;
+			unsigned int m_magneticForceMethod;
 			MagneticForceBase *m_magneticForce;
 			std::vector<FieldDescription> m_fields;
 
@@ -229,18 +199,24 @@ namespace SPH
 
 			void emittedParticles(const unsigned int startIndex);
 
-			int getSurfaceTensionMethod() const { return static_cast<int>(m_surfaceTensionMethod); }
-			void setSurfaceTensionMethod(const int val);
-			int getViscosityMethod() const { return static_cast<int>(m_viscosityMethod); }
-			void setViscosityMethod(const int val);
-			int getVorticityMethod() const { return static_cast<int>(m_vorticityMethod); }
-			void setVorticityMethod(const int val);
-			int getDragMethod() const { return static_cast<int>(m_dragMethod); }
-			void setDragMethod(const int val);
-			int getElasticityMethod() const { return static_cast<int>(m_elasticityMethod); }
-			void setElasticityMethod(const int val);
-			int getMagneticForceMethod() const { return static_cast<int>(m_magneticForceMethod); }
-			void setMagneticForceMethod(const int val);
+			unsigned int getSurfaceTensionMethod() const { return m_surfaceTensionMethod; }
+			void setSurfaceTensionMethod(const std::string& val);
+			void setSurfaceTensionMethod(const unsigned int val);
+			unsigned int getViscosityMethod() const { return m_viscosityMethod; }
+			void setViscosityMethod(const std::string &val);
+			void setViscosityMethod(const unsigned int val);
+			unsigned int getVorticityMethod() const { return m_vorticityMethod; }
+			void setVorticityMethod(const std::string& val);
+			void setVorticityMethod(const unsigned int val);
+			unsigned int getDragMethod() const { return m_dragMethod; }
+			void setDragMethod(const std::string& val);
+			void setDragMethod(const unsigned int val);
+			unsigned int getElasticityMethod() const { return m_elasticityMethod; }
+			void setElasticityMethod(const std::string& val);
+			void setElasticityMethod(const unsigned int val);
+			unsigned int getMagneticForceMethod() const { return m_magneticForceMethod; }
+			void setMagneticForceMethod(const std::string& val);
+			void setMagneticForceMethod(const unsigned int val);
 
 			SurfaceTensionBase *getSurfaceTensionBase() { return m_surfaceTension; }
 			ViscosityBase *getViscosityBase() { return m_viscosity; }
@@ -267,9 +243,9 @@ namespace SPH
 			void loadState(BinaryFileReader &binReader);
 
 #ifdef USE_PERFORMANCE_OPTIMIZATION
-			std::vector<Vector3f8, Eigen::aligned_allocator<Vector3f8>> & get_precomputed_V_gradW() { return m_precomp_V_gradW; }
-			std::vector<unsigned int>& get_precomputed_indices() { return m_precompIndices; }
-			std::vector<unsigned int>& get_precomputed_indices_same_phase() { return m_precompIndicesSamePhase; }
+			inline std::vector<Vector3f8, Eigen::aligned_allocator<Vector3f8>> & get_precomputed_V_gradW() { return m_precomp_V_gradW; }
+			inline std::vector<unsigned int>& get_precomputed_indices() { return m_precompIndices; }
+			inline std::vector<unsigned int>& get_precomputed_indices_same_phase() { return m_precompIndicesSamePhase; }
 #endif
 
 			FORCE_INLINE Vector3r &getPosition0(const unsigned int i)

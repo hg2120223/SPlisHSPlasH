@@ -44,6 +44,12 @@ namespace SPH
 		void computeRHS(VectorXr & rhs);	
 
 		virtual void initParameters();
+		/** This function is called after the simulation scene is loaded and all
+		* parameters are initialized. While reading a scene file several parameters
+		* can change. The deferred init function should initialize all values which
+		* depend on these parameters.
+		*/
+		virtual void deferredInit();
 
 		//////////////////////////////////////////////////////////////////////////
 		// multiplication of symmetric matrix, represented by a 6D vector, and a 
@@ -65,6 +71,8 @@ namespace SPH
 
 		Elasticity_Peer2018(FluidModel *model);
 		virtual ~Elasticity_Peer2018(void);
+
+		static NonPressureForceBase* creator(FluidModel* model) { return new Elasticity_Peer2018(model); }
 
 		virtual void step();
 		virtual void reset();

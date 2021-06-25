@@ -22,10 +22,6 @@ MagneticForce_Huang2019::MagneticForce_Huang2019(FluidModel *model) :
     const unsigned int numParticles = m_model->numActiveParticles();
     for (int i = 0; i < int(numParticles); i++)
         m_forces.push_back(Vector3r(0,0,0));
-    m_const_ext_field[0] = 0;
-    m_const_ext_field[1] = 0;
-    m_const_ext_field[2] = 0;
-
 }
 
 MagneticForce_Huang2019::~MagneticForce_Huang2019(void)
@@ -37,8 +33,6 @@ void MagneticForce_Huang2019::step()
 
 
     Simulation *sim = Simulation::getCurrent();
-    std::cout << m_step << std::endl;
-
     const unsigned int numParticles = m_model->numActiveParticles();
     const unsigned int nFluids = sim->numberOfFluidModels();
     const unsigned int nBoundaries = sim->numberOfBoundaryModels();
@@ -70,8 +64,7 @@ void MagneticForce_Huang2019::step()
             }
         }
 
-
-        std::vector<std::vector<float>> f = ferro(particlePos,m_susceptibility,m_const_ext_field);
+        std::vector<std::vector<float>> f = ferro(particlePos, m_susceptibility, m_const_ext_field);
 
         for (int i = 0; i < numParticles; i++)
         {
@@ -83,11 +76,11 @@ void MagneticForce_Huang2019::step()
         for (int i = 0; i < outliers.size(); i++)
             f.insert(f.begin() + outliers[i], 1, std::vector<float>{0.f,0.f,0.f});
 
-        std::cout << "f_t for particle 0 " << std::endl;
-        std::cout << m_forces[0](0,0) << std::endl;
-        std::cout << m_forces[0](1,0) << std::endl;
-        std::cout << m_forces[0](2,0) << std::endl;
-
+        if (m_step % 100 == 0)
+        {
+            std::cout << "Current timestep: " << m_step << std::endl;
+            std::cout << "F_t for particle 0: " << m_forces[0](0, 0) << ", " << m_forces[0](1, 0) << ", " << m_forces[0](2, 0) << std::endl;
+        }
     }
     for (int i = 0; i < numParticles; i++) {
         Vector3r &ai = m_model->getAcceleration(i);

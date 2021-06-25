@@ -66,10 +66,11 @@ void imguiParameters::createStringParameter(imguiParameters::imguiParameter* par
 	if ((sparam != nullptr) && (sparam->getFct != nullptr))
 	{
 		std::string str = sparam->getFct();
-		char value[1000];
+		const unsigned int buf_size = 1000;
+		char value[buf_size];
 		strcpy(value, str.c_str());
 
-		ImGui::InputText(sparam->label.c_str(), value, str.length(), flags);
+		ImGui::InputText(sparam->label.c_str(), value, buf_size, flags);
 
 		if (ImGui::IsItemDeactivatedAfterEdit())
 		{
@@ -156,6 +157,22 @@ bool imguiParameters::createEnumParameter(imguiParameters::imguiParameter* param
 	return false;
 }
 
+void imguiParameters::createFunctionParameter(imguiParameters::imguiParameter* param, ImGuiInputTextFlags flags, const std::string& helpText)
+{
+	// bool parameter
+	imguiParameters::imguiFunctionParameter* fparam = dynamic_cast<imguiParameters::imguiFunctionParameter*>(param);
+	if ((fparam != nullptr) && (fparam->function != nullptr))
+	{
+		if (ImGui::Button(fparam->label.c_str()))
+		{
+			if (fparam->function)
+				fparam->function();
+		}
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip(helpText.c_str());
+	}
+}
+
 void imguiParameters::createSubgroupParameters(const std::vector<std::pair<std::string, std::vector<imguiParameter*>>> &params)
 {
 	for (auto subgroup_index = 0; subgroup_index < params.size(); subgroup_index++)
@@ -171,6 +188,8 @@ void imguiParameters::createSubgroupParameters(const std::vector<std::pair<std::
 				std::string helpText = param->description;
 				if (param->readOnly)
 					helpText += " (read-only)";
+				else if ((param->name != "") && (dynamic_cast<imguiParameters::imguiFunctionParameter*>(param) == nullptr))		// no key help text for function parameters
+					helpText += "\n\nkey in scene file:\n" + param->name;
 
 				ImGuiInputTextFlags flags = 0;
 				if (param->readOnly)
@@ -192,6 +211,7 @@ void imguiParameters::createSubgroupParameters(const std::vector<std::pair<std::
 				createStringParameter(param, flags, helpText);
 				createVec3rParameter(param, flags, helpText);
 				createVec3fParameter(param, flags, helpText);
+				createFunctionParameter(param, flags, helpText);
 				if (createEnumParameter(param, flags, helpText))
 				{
 					// stop the creation of the GUI since the change of an enum value
@@ -200,8 +220,7 @@ void imguiParameters::createSubgroupParameters(const std::vector<std::pair<std::
 						ImGui::PopStyleColor(3);
 					if (subgroup.first != "")
 						ImGui::TreePop();
-					ImGui::EndTabItem();
-					ImGui::EndTabBar();
+					ImGui::PopStyleColor(2);
 					return;
 				}
 
@@ -250,10 +269,9 @@ void imguiParameters::createParameterGUI()
 				ImGui::EndTabItem();				
 			}
 		}
+		ImGui::EndTabBar();
 	}
 	ImGui::PopStyleColor(3);
-	ImGui::EndTabBar();
-
 }
 
 void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
@@ -269,7 +287,8 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		std::string group = paramBase->getGroup();
 		std::string subgroup = "";
 		if ((group == "WCSPH") || (group == "PCISPH") || (group == "PBF") || 
-			(group == "IISPH") || (group == "DFSPH") || (group == "PF") || 
+			(group == "IISPH") || (group == "DFSPH") || (group == "PF") ||
+			(group == "ICSPH") ||
 			(group == "CFL") || (group == "Kernel"))
 		{
 			subgroup = group;
@@ -289,9 +308,19 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		if (group == "General")
 			subgroup = group;
 
+		if (group == "Export")
+			subgroup = "General";
+
+		if ((group == "Particle exporters") || (group == "Rigid body exporters"))
+		{
+			subgroup = group;
+			group = "Export";
+		}
+
 		if (paramBase->getType() == RealParameterType)
 		{
 			imguiParameters::imguiNumericParameter<Real>* param = new imguiParameters::imguiNumericParameter<Real>();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -304,6 +333,7 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if (paramBase->getType() == ParameterBase::UINT32)
 		{
 			imguiParameters::imguiNumericParameter<unsigned int>* param = new imguiParameters::imguiNumericParameter<unsigned int>();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -316,6 +346,7 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if (paramBase->getType() == ParameterBase::UINT16)
 		{
 			imguiParameters::imguiNumericParameter<unsigned short>* param = new imguiParameters::imguiNumericParameter<unsigned short>();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -328,6 +359,7 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if (paramBase->getType() == ParameterBase::UINT8)
 		{
 			imguiParameters::imguiNumericParameter<unsigned char>* param = new imguiParameters::imguiNumericParameter<unsigned char>();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -340,6 +372,7 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if (paramBase->getType() == ParameterBase::INT32)
 		{
 			imguiParameters::imguiNumericParameter<int>* param = new imguiParameters::imguiNumericParameter<int>();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -352,6 +385,7 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if (paramBase->getType() == ParameterBase::INT16)
 		{
 			imguiParameters::imguiNumericParameter<short>* param = new imguiParameters::imguiNumericParameter<short>();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -364,6 +398,7 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if (paramBase->getType() == ParameterBase::INT8)
 		{
 			imguiParameters::imguiNumericParameter<char>* param = new imguiParameters::imguiNumericParameter<char>();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -376,6 +411,7 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if (paramBase->getType() == ParameterBase::BOOL)
 		{
 			imguiParameters::imguiBoolParameter* param = new imguiParameters::imguiBoolParameter();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -386,6 +422,7 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if (paramBase->getType() == ParameterBase::ENUM)
 		{
 			imguiParameters::imguiEnumParameter* param = new imguiParameters::imguiEnumParameter();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -399,6 +436,7 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if (paramBase->getType() == ParameterBase::STRING)
 		{
 			imguiParameters::imguiStringParameter* param = new imguiParameters::imguiStringParameter();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
@@ -409,11 +447,22 @@ void imguiParameters::createParameterObjectGUI(ParameterObject* paramObj)
 		else if ((paramBase->getType() == RealVectorParameterType) && (static_cast<RealVectorParameter*>(paramBase)->getDim() == 3))
 		{
 			imguiParameters::imguiVec3rParameter* param = new imguiParameters::imguiVec3rParameter();
+			param->name = paramBase->getName();
 			param->description = paramBase->getDescription();
 			param->label = paramBase->getLabel();
 			param->readOnly = paramBase->getReadOnly();
 			param->getFct = [paramBase]() -> Vector3r { return Vector3r(static_cast<RealVectorParameter*>(paramBase)->getValue()); };
 			param->setFct = [paramBase](Vector3r& v) { static_cast<RealVectorParameter*>(paramBase)->setValue(v.data()); };
+			imguiParameters::addParam(group, subgroup, param);
+		}
+		else if (paramBase->getType() == ParameterBase::FUNCTION)
+		{
+			imguiParameters::imguiFunctionParameter* param = new imguiParameters::imguiFunctionParameter();
+			param->name = paramBase->getName();
+			param->description = paramBase->getDescription();
+			param->label = paramBase->getLabel();
+			param->readOnly = false;
+			param->function = [paramBase]() { static_cast<FunctionParameter*>(paramBase)->callFunction(); };
 			imguiParameters::addParam(group, subgroup, param);
 		}
 	}

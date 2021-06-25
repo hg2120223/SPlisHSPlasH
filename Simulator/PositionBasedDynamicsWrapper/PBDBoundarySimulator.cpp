@@ -8,6 +8,7 @@
 #include "Simulator/PositionBasedDynamicsWrapper/PBDRigidBody.h"
 #include "SPlisHSPlasH/Emitter.h"
 #include "Simulator/GUI/Simulator_GUI_Base.h"
+#include "Simulator/SceneConfiguration.h"
 
 using namespace std;
 using namespace SPH;
@@ -26,7 +27,8 @@ PBDBoundarySimulator::~PBDBoundarySimulator()
 
 void PBDBoundarySimulator::init()
 {
-	if (m_base->getScene().sim2D)
+	const Utilities::SceneLoader::Scene& scene = SceneConfiguration::getCurrent()->getScene();
+	if (scene.sim2D)
 	{
 		LOG_ERR << "Dynamic boundaries are not supported in 2D simulations.";
 		exit(1);
@@ -55,10 +57,12 @@ void PBDBoundarySimulator::timeStep()
 
 void PBDBoundarySimulator::initBoundaryData()
 {
+	const std::string& sceneFile = SceneConfiguration::getCurrent()->getSceneFile();
+	const Utilities::SceneLoader::Scene& scene = SceneConfiguration::getCurrent()->getScene();
+
 	// create additional rigid body information for emitters
-	const SceneLoader::Scene &scene = m_base->getScene();
 	std::vector<PBDWrapper::RBData> additionalRBs;
-	const std::string scene_path = FileSystem::getFilePath(m_base->getSceneFile());
+	const std::string scene_path = FileSystem::getFilePath(sceneFile);
 	// the last boundary models are the ones that were added for the emitters
 	for (auto i = 0; i < scene.emitters.size(); i++)
 	{
@@ -81,9 +85,9 @@ void PBDBoundarySimulator::initBoundaryData()
 		}
 		additionalRBs.push_back(rb);
 	}
-	m_pbdWrapper->readScene(m_base->getSceneFile(), additionalRBs);
+	m_pbdWrapper->readScene(sceneFile, additionalRBs);
 	
-	std::string scene_file_name = FileSystem::getFileName(m_base->getSceneFile());
+	std::string scene_file_name = FileSystem::getFileName(sceneFile);
 	const bool useCache = m_base->getUseParticleCaching();
 	Simulation *sim = Simulation::getCurrent();
 
@@ -125,7 +129,7 @@ void PBDBoundarySimulator::initBoundaryData()
 
 				// transform back to local coordinates
 				for (unsigned int j = 0; j < boundaryParticles.size(); j++)
-					boundaryParticles[j] = rb->getRotation().transpose() * (rb->getWorldSpaceRotation() * boundaryParticles[j] + rb->getWorldSpacePosition() - rb->getPosition());
+					boundaryParticles[j] = rb->getRotation().toRotationMatrix().transpose() * (rb->getWorldSpaceRotation() * boundaryParticles[j] + rb->getWorldSpacePosition() - rb->getPosition());
 			}
 			else		// if no samples file is given, sample the surface model
 			{
@@ -133,10 +137,10 @@ void PBDBoundarySimulator::initBoundaryData()
 				std::string mesh_base_path = FileSystem::getFilePath(scene.boundaryModels[i]->meshFile);
 				std::string mesh_file_name = FileSystem::getFileName(scene.boundaryModels[i]->meshFile);
 
-				const string resStr = m_base->real2String(scene.boundaryModels[i]->scale[0]) + "_" + m_base->real2String(scene.boundaryModels[i]->scale[1]) + "_" + m_base->real2String(scene.boundaryModels[i]->scale[2]);
+				const string resStr = StringTools::real2String(scene.boundaryModels[i]->scale[0]) + "_" + StringTools::real2String(scene.boundaryModels[i]->scale[1]) + "_" + StringTools::real2String(scene.boundaryModels[i]->scale[2]);
 
 				const string modeStr = "_m" + std::to_string(scene.boundaryModels[i]->samplingMode);
-				const string particleFileName = FileSystem::normalizePath(cachePath + "/" + mesh_file_name + "_db_" + m_base->real2String(scene.particleRadius) + "_" + resStr + modeStr + ".bgeo");
+				const string particleFileName = FileSystem::normalizePath(cachePath + "/" + mesh_file_name + "_db_" + StringTools::real2String(scene.particleRadius) + "_" + resStr + modeStr + ".bgeo");
 
 				// check MD5 if cache file is available
 				bool foundCacheFile = false;
@@ -181,7 +185,7 @@ void PBDBoundarySimulator::initBoundaryData()
 
 					// transform back to local coordinates
 					for (unsigned int j = 0; j < boundaryParticles.size(); j++)
-						boundaryParticles[j] = rb->getRotation().transpose() * (boundaryParticles[j] - rb->getPosition());
+						boundaryParticles[j] = rb->getRotation().toRotationMatrix().transpose() * (boundaryParticles[j] - rb->getPosition());
 
 					// Cache sampling
 					if (useCache && (FileSystem::makeDir(cachePath) == 0))
@@ -223,14 +227,18 @@ void PBDBoundarySimulator::initBoundaryData()
 			std::vector<Vector3r> xLocal;
 			xLocal.resize(vd.size());
 			for (unsigned int j = 0; j < vd.size(); j++)
-				xLocal[j] = rb->getRotation().transpose() * (vd.getPosition(j) - rb->getPosition());
+				xLocal[j] = rb->getRotation().toRotationMatrix().transpose() * (vd.getPosition(j) - rb->getPosition());
 			m_base->initVolumeMap(xLocal, mesh.getFaces(), scene.boundaryModels[i], md5, true, bm);
 		}
 		if (useCache && !md5)
 			FileSystem::writeMD5File(meshFileName, md5FileName);
 	}
+}
 
-	Simulation::getCurrent()->performNeighborhoodSearchSort();
+void PBDBoundarySimulator::deferredInit()
+{
+	Simulation* sim = Simulation::getCurrent();
+	sim->performNeighborhoodSearchSort();
 	if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Akinci2012)
 	{
 		m_base->updateBoundaryParticles(true);

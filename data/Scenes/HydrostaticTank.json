@@ -9,7 +9,7 @@
 		"simulationMethod": 0,
 		"stiffness": 11571,
 		"exponent": 7,
-		"gravitation": [0,-9.81,0], 
+		"gravitation": [0,-9.81,0],
     		"cflMethod": 0, 
 		"maxIterations": 100,
 		"timeStepSize": 0.00003,
@@ -28,7 +28,7 @@
 			"viscosity": 0.001,
 			"viscosityMethod": 1,
 			"magneticForceMethod": 1,
-			"susceptibility": 1.2,
+			"susceptibility": 1.0,
 			"externalField": [0,13000,0],
 			"colorMapType": 1
 		}

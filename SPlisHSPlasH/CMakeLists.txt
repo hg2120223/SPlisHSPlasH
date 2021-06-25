@@ -60,6 +60,16 @@ set(PF_SOURCE_FILES
 	PF/TimeStepPF.cpp
 	)
 	
+set(ICSPH_HEADER_FILES
+	ICSPH/SimulationDataICSPH.h
+	ICSPH/TimeStepICSPH.h
+	)
+	
+set(ICSPH_SOURCE_FILES
+	ICSPH/SimulationDataICSPH.cpp
+	ICSPH/TimeStepICSPH.cpp
+	)	
+	
 set(SURFACETENSION_HEADER_FILES
 	SurfaceTension/SurfaceTensionBase.h
 	SurfaceTension/SurfaceTension_Becker2007.h
@@ -142,6 +152,7 @@ set(MAGNETICFORCE_SOURCE_FILES
 	
 set(UTILS_HEADER_FILES
 	Utilities/AVX_math.h
+	Utilities/DebugTools.h
 	Utilities/MathFunctions.h
 	Utilities/GaussQuadrature.h
 	Utilities/MatrixFreeSolver.h
@@ -157,6 +168,7 @@ set(UTILS_HEADER_FILES
 	)
 	
 set(UTILS_SOURCE_FILES
+	Utilities/DebugTools.cpp
 	Utilities/MathFunctions.cpp
 	Utilities/GaussQuadrature.cpp
 	Utilities/PoissonDiskSampling.cpp
@@ -168,6 +180,17 @@ set(UTILS_SOURCE_FILES
 	Utilities/SimpleQuadrature.cpp
 	Utilities/WindingNumbers.cpp
 )
+	
+if (USE_THIRD_PARTY_METHODS)
+	list(APPEND SURFACETENSION_HEADER_FILES 
+		SurfaceTension/SurfaceTension_ZorillaRitter2020_haltonVec323.h
+		SurfaceTension/SurfaceTension_ZorillaRitter2020.h
+	)
+	
+	list(APPEND SURFACETENSION_SOURCE_FILES
+		SurfaceTension/SurfaceTension_ZorillaRitter2020.cpp
+	)
+endif()
 	
 add_library(SPlisHSPlasH
 	Common.h
@@ -193,6 +216,7 @@ add_library(SPlisHSPlasH
 	FluidModel.cpp
 	FluidModel.h
 	RigidBodyObject.h
+	NonPressureForceRegistration.cpp
 	SPHKernels.cpp
 	SPHKernels.h
 	StaticRigidBody.h
@@ -224,6 +248,9 @@ add_library(SPlisHSPlasH
 	
 	${PF_HEADER_FILES}
 	${PF_SOURCE_FILES}
+	
+	${ICSPH_HEADER_FILES}
+	${ICSPH_SOURCE_FILES}
 	
 	${VISCOSITY_HEADER_FILES}
 	${VISCOSITY_SOURCE_FILES}
@@ -283,6 +310,8 @@ source_group("Header Files\\DFSPH" FILES ${DFSPH_HEADER_FILES})
 source_group("Source Files\\DFSPH" FILES ${DFSPH_SOURCE_FILES})
 source_group("Header Files\\PF" FILES ${PF_HEADER_FILES})
 source_group("Source Files\\PF" FILES ${PF_SOURCE_FILES})
+source_group("Header Files\\ICSPH" FILES ${ICSPH_HEADER_FILES})
+source_group("Source Files\\ICSPH" FILES ${ICSPH_SOURCE_FILES})
 source_group("Header Files\\Viscosity" FILES ${VISCOSITY_HEADER_FILES})
 source_group("Source Files\\Viscosity" FILES ${VISCOSITY_SOURCE_FILES})
 source_group("Header Files\\SurfaceTension" FILES ${SURFACETENSION_HEADER_FILES})

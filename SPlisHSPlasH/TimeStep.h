@@ -28,13 +28,9 @@ namespace SPH
 		*/
 		void clearAccelerations(const unsigned int fluidModelIndex);
 
-		/** Determine densities of all fluid particles.
-		*/
-		void computeDensities(const unsigned int fluidModelIndex);
-
 		virtual void initParameters();
 
-		void approximateNormal(Discregrid::DiscreteGrid* map, const Eigen::Vector3d &x, Vector3r &n, const unsigned int dim);
+		void approximateNormal(Discregrid::DiscreteGrid* map, const Eigen::Vector3d &x, Eigen::Vector3d &n, const unsigned int dim);
 		void computeVolumeAndBoundaryX(const unsigned int fluidModelIndex, const unsigned int i, const Vector3r &xi);
 		void computeVolumeAndBoundaryX();
 		void computeDensityAndGradient(const unsigned int fluidModelIndex, const unsigned int i, const Vector3r &xi);
@@ -43,6 +39,10 @@ namespace SPH
 	public:
 		TimeStep();
 		virtual ~TimeStep(void);
+
+		/** Determine densities of all fluid particles.
+		*/
+		void computeDensities(const unsigned int fluidModelIndex);
 
 		virtual void step() = 0;
 		virtual void reset();

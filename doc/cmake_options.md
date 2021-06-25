@@ -26,3 +26,13 @@ As default SPlisHSPlasH uses [CompactNSearch ](https://github.com/InteractiveCom
 ## USE_IMGUI
 
 We just reimplemented the GUI using [imgui](https://github.com/ocornut/imgui) instead of [AntTweakBar](http://anttweakbar.sourceforge.net). If you want to try out the new GUI, enable this flag. 
+
+## USE_PYTHON_BINDINGS
+
+Generate a shared library object which can be imported into python scripts and exposes C++ functionality to the python interpreter.
+*Default:On*
+*Options:<On|Off>*
+
+## USE_DEBUG_TOOLS
+
+Adds a debug tools tab to the graphical user interface which allows to  generate additional particle data for debugging. Note that generating the additional data will slightly decrease the performance of the simulation.

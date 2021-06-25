@@ -1,0 +1,13 @@
+/home/jake/Documents/clion-2021.1.2/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - Unix Makefiles" /home/jake/Documents/fluids/SPlisHSPlasH
+-- Found OpenMP_C: -fopenmp (found version "4.5") 
+-- Found OpenMP_CXX: -fopenmp (found version "4.5") 
+-- Build type: Debug
+-- Found OpenMP_C: -fopenmp (found version "4.5") 
+-- Found OpenMP_CXX: -fopenmp (found version "4.5") 
+-- Using X11 for window creation
+CMake Error at extern/glfw/CMakeLists.txt:203 (message):
+  RandR headers not found; install libxrandr development package
+
+
+-- Configuring incomplete, errors occurred!
+See also "/home/jake/Documents/fluids/SPlisHSPlasH/cmake-build-debug/CMakeFiles/CMakeOutput.log".

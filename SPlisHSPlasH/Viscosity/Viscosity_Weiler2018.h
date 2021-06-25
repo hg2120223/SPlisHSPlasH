@@ -47,13 +47,34 @@ namespace SPH
 		Viscosity_Weiler2018(FluidModel *model);
 		virtual ~Viscosity_Weiler2018(void);
 
+		static NonPressureForceBase* creator(FluidModel* model) { return new Viscosity_Weiler2018(model); }
+
 		virtual void step();
 		virtual void reset();
 
 		virtual void performNeighborhoodSearchSort();
 
 		static void matrixVecProd(const Real* vec, Real *result, void *userData);
-	};
+
+		FORCE_INLINE const Vector3r& getVDiff(const unsigned int i) const
+		{
+			return m_vDiff[i];
+		}
+
+		FORCE_INLINE Vector3r& getVDiff(const unsigned int i)
+		{
+			return m_vDiff[i];
+		}
+
+		FORCE_INLINE void setVDiff(const unsigned int i, const Vector3r& val)
+		{
+			m_vDiff[i] = val;
+		}
+
+        void computeRHS(VectorXr &b, VectorXr &g);
+
+        void applyForces(const VectorXr &x);
+    };
 }
 
 #endif

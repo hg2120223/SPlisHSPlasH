@@ -9,10 +9,18 @@
 #include "SPlisHSPlasH/IISPH/TimeStepIISPH.h"
 #include "SPlisHSPlasH/DFSPH/TimeStepDFSPH.h"
 #include "SPlisHSPlasH/PF/TimeStepPF.h"
+#include "SPlisHSPlasH/ICSPH/TimeStepICSPH.h"
 #include "BoundaryModel_Akinci2012.h"
 #include "BoundaryModel_Bender2019.h"
 #include "BoundaryModel_Koschier2017.h"
 
+#include "SPlisHSPlasH/Viscosity/Viscosity_Standard.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_XSPH.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Bender2017.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Peer2015.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Peer2016.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Takahashi2015.h"
+#include "SPlisHSPlasH/Viscosity/Viscosity_Weiler2018.h"
 
 
 using namespace SPH;
@@ -54,6 +62,7 @@ int Simulation::ENUM_SIMULATION_PBF = -1;
 int Simulation::ENUM_SIMULATION_IISPH = -1;
 int Simulation::ENUM_SIMULATION_DFSPH = -1;
 int Simulation::ENUM_SIMULATION_PF = -1;
+int Simulation::ENUM_SIMULATION_ICSPH = -1;
 int Simulation::BOUNDARY_HANDLING_METHOD = -1;
 int Simulation::ENUM_AKINCI2012 = -1;
 int Simulation::ENUM_KOSCHIER2017 = -1;
@@ -76,6 +85,7 @@ Simulation::Simulation ()
 	m_simulationMethod = SimulationMethods::NumSimulationMethods;
 	m_simulationMethodChanged = NULL;
 
+	m_simulationIsInitialized = false;
 	m_sim2D = false;
 	m_enableZSort = true;
 
@@ -85,6 +95,9 @@ Simulation::Simulation ()
 
 Simulation::~Simulation () 
 {
+#ifdef USE_DEBUG_TOOLS
+	delete m_debugTools;
+#endif
 	delete m_animationFieldSystem;
 	delete m_timeStep;
 	delete m_neighborhoodSearch;
@@ -125,6 +138,8 @@ void Simulation::init(const Real particleRadius, const bool sim2D)
 	m_sim2D = sim2D;
 	initParameters();
 
+	registerNonpressureForces();
+
 	// init kernel
 	setParticleRadius(particleRadius);
 
@@ -139,6 +154,15 @@ void Simulation::init(const Real particleRadius, const bool sim2D)
 		m_neighborhoodSearch = new NeighborhoodSearch(m_supportRadius, false);
 #endif
 	m_neighborhoodSearch->set_radius(m_supportRadius);
+}
+
+void Simulation::deferredInit()
+{
+	for (unsigned int i = 0; i < numberOfFluidModels(); i++)
+	{
+		FluidModel* fm = getFluidModel(i);
+		fm->deferredInit();
+	}
 }
 
 void Simulation::initParameters()
@@ -240,6 +264,7 @@ void Simulation::initParameters()
 	enumParam->addEnumValue("IISPH", ENUM_SIMULATION_IISPH);
 	enumParam->addEnumValue("DFSPH", ENUM_SIMULATION_DFSPH);
 	enumParam->addEnumValue("Projective Fluids", ENUM_SIMULATION_PF);
+	enumParam->addEnumValue("ICSPH", ENUM_SIMULATION_ICSPH);
 
 	BOUNDARY_HANDLING_METHOD = createEnumParameter("boundaryHandlingMethod", "Boundary handling method", &m_boundaryHandlingMethod);
 	setGroup(BOUNDARY_HANDLING_METHOD, "Simulation");
@@ -255,8 +280,12 @@ void Simulation::initParameters()
 void Simulation::setParticleRadius(Real val)
 {
 	m_particleRadius = val;
-	m_supportRadius = static_cast<Real>(4.0)*m_particleRadius;
+	m_supportRadius = static_cast<Real>(4.0) * m_particleRadius;
+	initKernels();
+}
 
+void Simulation::initKernels()
+{
 	// init kernel
 	Poly6Kernel::setRadius(m_supportRadius);
 	SpikyKernel::setRadius(m_supportRadius);
@@ -269,8 +298,8 @@ void Simulation::setParticleRadius(Real val)
 	WendlandQuinticC2Kernel2D::setRadius(m_supportRadius);
 #ifdef USE_AVX
 	CubicKernel_AVX::setRadius(m_supportRadius, m_sim2D);
-// 	Poly6Kernel_AVX::setRadius(m_supportRadius);
-// 	SpikyKernel_AVX::setRadius(m_supportRadius);
+	// 	Poly6Kernel_AVX::setRadius(m_supportRadius);
+	// 	SpikyKernel_AVX::setRadius(m_supportRadius);
 #endif
 }
 
@@ -373,9 +402,9 @@ void Simulation::updateTimeStepSize()
 		updateTimeStepSizeCFL();
 		const unsigned int iterations = m_timeStep->getValue<unsigned int>(TimeStep::SOLVER_ITERATIONS);
 		if (iterations > 10)
-			h *= 0.9;
+			h *= static_cast<Real>(0.9);
 		else if (iterations < 5)
-			h *= 1.1;
+			h *= static_cast<Real>(1.1);
 		h = min(h, TimeManager::getCurrent()->getTimeStepSize());
 		TimeManager::getCurrent()->setTimeStepSize(h);
 	}
@@ -413,7 +442,7 @@ void Simulation::updateTimeStepSizeCFL()
 		for (unsigned int i = 0; i < numberOfBoundaryModels(); i++)
 		{
 			BoundaryModel_Akinci2012 *bm = static_cast<BoundaryModel_Akinci2012*>(getBoundaryModel(i));
-			if (bm->getRigidBodyObject()->isDynamic())
+			if (bm->getRigidBodyObject()->isDynamic() || bm->getRigidBodyObject()->isAnimated())
 			{
 				for (unsigned int j = 0; j < bm->numberOfParticles(); j++)
 				{
@@ -430,7 +459,7 @@ void Simulation::updateTimeStepSizeCFL()
 		for (unsigned int boundaryModelIndex = 0; boundaryModelIndex < numberOfBoundaryModels(); boundaryModelIndex++)
 		{
 			BoundaryModel_Koschier2017 *bm = static_cast<BoundaryModel_Koschier2017*>(getBoundaryModel(boundaryModelIndex));
-			if (bm->getRigidBodyObject()->isDynamic())
+			if (bm->getRigidBodyObject()->isDynamic() || bm->getRigidBodyObject()->isAnimated())
 			{
 				maxVel = std::max(maxVel, bm->getMaxVel());
 			}
@@ -441,7 +470,7 @@ void Simulation::updateTimeStepSizeCFL()
 		for (unsigned int boundaryModelIndex = 0; boundaryModelIndex < numberOfBoundaryModels(); boundaryModelIndex++)
 		{
 			BoundaryModel_Bender2019 *bm = static_cast<BoundaryModel_Bender2019*>(getBoundaryModel(boundaryModelIndex));
-			if (bm->getRigidBodyObject()->isDynamic())
+			if (bm->getRigidBodyObject()->isDynamic() || bm->getRigidBodyObject()->isAnimated())
 			{
 				maxVel = std::max(maxVel, bm->getMaxVel());
 			}
@@ -553,6 +582,13 @@ void Simulation::setSimulationMethod(const int val)
 		setValue(Simulation::KERNEL_METHOD, Simulation::ENUM_KERNEL_PRECOMPUTED_CUBIC);
 		setValue(Simulation::GRAD_KERNEL_METHOD, Simulation::ENUM_GRADKERNEL_PRECOMPUTED_CUBIC);
 	}
+	else if (method == SimulationMethods::ICSPH)
+	{
+		m_timeStep = new TimeStepICSPH();
+		m_timeStep->init();
+		setValue(Simulation::KERNEL_METHOD, Simulation::ENUM_KERNEL_CUBIC);
+		setValue(Simulation::GRAD_KERNEL_METHOD, Simulation::ENUM_GRADKERNEL_CUBIC);
+	}
 
 	if (m_simulationMethodChanged != nullptr)
 		m_simulationMethodChanged();
@@ -584,6 +620,9 @@ void Simulation::performNeighborhoodSearchSort()
 		BoundaryModel *bm = getBoundaryModel(i);
 		bm->performNeighborhoodSearchSort();
 	}
+#ifdef USE_DEBUG_TOOLS
+	m_debugTools->performNeighborhoodSearchSort();
+#endif
 }
 
 void Simulation::setSimulationMethodChangedCallback(std::function<void()> const& callBackFct)
@@ -591,10 +630,20 @@ void Simulation::setSimulationMethodChangedCallback(std::function<void()> const&
 	m_simulationMethodChanged = callBackFct;
 }
 
+void Simulation::setSimulationInitialized(int val) 
+{ 
+	m_simulationIsInitialized = val; 
+	if (m_simulationIsInitialized)
+		deferredInit();
+}
+
 void Simulation::emittedParticles(FluidModel *model, const unsigned int startIndex)
 {
 	model->emittedParticles(startIndex);
 	m_timeStep->emittedParticles(model, startIndex);
+#ifdef USE_DEBUG_TOOLS
+	m_debugTools->emittedParticles(model, startIndex);
+#endif
 }
 
 void Simulation::emitParticles()
@@ -648,7 +697,7 @@ void Simulation::updateBoundaryVolume()
 	m_neighborhoodSearch->set_active(false);
 	for (unsigned int i = 0; i < numberOfBoundaryModels(); i++)
 	{
-		if (!getBoundaryModel(i)->getRigidBodyObject()->isDynamic())
+		if (!getBoundaryModel(i)->getRigidBodyObject()->isDynamic() && !getBoundaryModel(i)->getRigidBodyObject()->isAnimated())
 			m_neighborhoodSearch->set_active(i + nFluids, true, true);
 	}
 
@@ -658,7 +707,7 @@ void Simulation::updateBoundaryVolume()
 	// Boundary objects
 	for (unsigned int body = 0; body < numberOfBoundaryModels(); body++)
 	{
-		if (!getBoundaryModel(body)->getRigidBodyObject()->isDynamic())
+		if (!getBoundaryModel(body)->getRigidBodyObject()->isDynamic() && !getBoundaryModel(body)->getRigidBodyObject()->isAnimated())
 			static_cast<BoundaryModel_Akinci2012*>(getBoundaryModel(body))->computeBoundaryVolume();
 	}
 
@@ -671,7 +720,7 @@ void Simulation::updateBoundaryVolume()
 		m_neighborhoodSearch->set_active(false);
 
 		// Only activate next dynamic body
-		if (getBoundaryModel(body)->getRigidBodyObject()->isDynamic())
+		if (getBoundaryModel(body)->getRigidBodyObject()->isDynamic() || getBoundaryModel(body)->getRigidBodyObject()->isAnimated())
 		{
 			m_neighborhoodSearch->set_active(body + nFluids, true, true);
 			m_neighborhoodSearch->find_neighbors();
@@ -709,3 +758,4 @@ void SPH::Simulation::loadState(BinaryFileReader &binReader)
 		getBoundaryModel(i)->loadState(binReader);
 	m_timeStep->loadState(binReader);
 }
+

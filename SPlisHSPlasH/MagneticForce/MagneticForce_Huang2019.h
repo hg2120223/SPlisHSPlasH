@@ -21,6 +21,8 @@ namespace SPH
         MagneticForce_Huang2019(FluidModel *model);
         virtual ~MagneticForce_Huang2019(void);
 
+        static NonPressureForceBase* creator(FluidModel* model) { return new MagneticForce_Huang2019(model); }
+
         virtual void step();
         virtual void reset();
     };

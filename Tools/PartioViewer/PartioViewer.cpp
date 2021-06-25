@@ -53,8 +53,6 @@ PartioViewer::~PartioViewer()
 
 int PartioViewer::run(int argc, char **argv)
 {
-	REPORT_MEMORY_LEAKS;
-
 	m_argc = argc;
 	m_argv = argv;
 
@@ -95,7 +93,7 @@ int PartioViewer::run(int argc, char **argv)
 			("s,startFrame", "Start frame (only used if value is >= 0)", cxxopts::value<int>()->default_value("-1"))
 			("e,endFrame", "End frame (only used if value is >= 0)", cxxopts::value<int>()->default_value("-1"))
 			("colorField", "Name of field that is used as default for the color.", cxxopts::value<std::string>()->default_value("velocity"))
-			("colorMapType", "Default color map (0=None, 1=Jet, 2=Plasma)", cxxopts::value<unsigned int>()->default_value("1"))
+			("colorMapType", "Default color map (0=None, 1=Jet, 2=Plasma, 3=CoolWarm, 4=BlueWhiteRed, 5=Seismic)", cxxopts::value<unsigned int>()->default_value("1"))
 			("renderMinValue", "Default min value of field.", cxxopts::value<float>()->default_value("0.0"))
 			("renderMaxValue", "Default max value of field.", cxxopts::value<float>()->default_value("10.0"))
 			;
@@ -315,7 +313,7 @@ int PartioViewer::run(int argc, char **argv)
 			{
 				Partio::ParticleAttribute attr;
 				m_fluids[i].partioData->attributeInfo(j, attr);
-				if ((attr.type == Partio::FLOAT) || (attr.type == Partio::VECTOR))
+				if ((attr.type == Partio::FLOAT) || (attr.type == Partio::VECTOR) || (attr.type == Partio::INT))
 				{
 					// select the default color field name
 					if (attr.name == m_defaultColorFieldName)
@@ -384,6 +382,39 @@ void PartioViewer::timeStep()
 	}
 }
 
+
+void PartioViewer::updateScalarField()
+{
+	m_scalarField.resize(m_fluids.size());
+	for (unsigned int fluidModelIndex = 0; fluidModelIndex < m_fluids.size(); fluidModelIndex++)
+	{
+		auto& fluid = m_fluids[fluidModelIndex];
+		// Draw simulation model
+		const unsigned int nParticles = fluid.partioData->numParticles();
+
+		Partio::ParticleAttribute attr;
+		fluid.partioData->attributeInfo(fluid.m_colorField, attr);
+
+		m_scalarField[fluidModelIndex].resize(nParticles);
+		for (unsigned int i = 0u; i < nParticles; i++)
+		{
+			if (attr.type == Partio::VECTOR)
+			{
+				const Eigen::Map<const Eigen::Vector3f> vec(fluid.partioData->data<float>(attr, i));
+				m_scalarField[fluidModelIndex][i] = static_cast<float>(vec.norm());
+			}
+			else if (attr.type == Partio::FLOAT)
+			{
+				m_scalarField[fluidModelIndex][i] = *fluid.partioData->data<float>(attr, i);
+			}
+			else if (attr.type == Partio::INT)
+			{
+				m_scalarField[fluidModelIndex][i] = static_cast<float>(*fluid.partioData->data<int>(attr, i));
+			}
+		}
+	}
+}
+
 void PartioViewer::loadObj(const std::string &filename, TriangleMesh &mesh, const Vector3r &scale)
 {
 	std::vector<OBJLoader::Vec3f> x;
@@ -422,6 +453,8 @@ bool PartioViewer::readPartioFile(const std::string &fileName, Partio::Particles
 	if (!FileSystem::fileExists(fileName))
 		return false;
 
+	if (partioData)
+		partioData->release();
 	partioData = Partio::read(fileName.c_str());
 
 	if (!partioData)
@@ -628,6 +661,7 @@ bool PartioViewer::updateData()
 			LOG_INFO << currentFile;
 			readRigidBodyData(currentFile, m_frameIndex == m_firstRBIndex);
 		}
+		updateScalarField();
 	}
 	return chk;
 }
@@ -813,7 +847,10 @@ void PartioViewer::updateBoundingBox()
 			for (int j = 0; j < m_fluids[i].partioData->numParticles(); j++)
 			{
 				const Eigen::Map<const Eigen::Vector3f> vec(&partioX[3 * j]);
-				m_fluidBoundingBox.extend(vec);
+				if (!std::isfinite(vec[0]) || !std::isfinite(vec[1]) || !std::isfinite(vec[2]))
+					LOG_WARN << "Warning: Fluid " << i << ", Particle " << j << ": " << vec.transpose();
+				else
+					m_fluidBoundingBox.extend(vec);
 			}
 		}
 	}

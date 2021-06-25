@@ -3,10 +3,14 @@
 #include "GUI/OpenGL/MiniGL.h"
 #include "GUI/OpenGL/colormaps/colormap_jet.h"
 #include "GUI/OpenGL/colormaps/colormap_plasma.h"
+#include "GUI/OpenGL/colormaps/colormap_bwr.h"
+#include "GUI/OpenGL/colormaps/colormap_coolwarm.h"
+#include "GUI/OpenGL/colormaps/colormap_seismic.h"
 #include "SPlisHSPlasH/FluidModel.h"
 #include "SPlisHSPlasH/Simulation.h"
 #include "SPlisHSPlasH/TimeManager.h"
 #include "SPlisHSPlasH/BoundaryModel_Akinci2012.h"
+#include <Utilities/Timing.h>
 
 using namespace SPH;
 using namespace std;
@@ -14,7 +18,6 @@ using namespace std;
 Shader Simulator_OpenGL::m_shader_scalar;
 Shader Simulator_OpenGL::m_shader_scalar_map;
 Shader Simulator_OpenGL::m_shader_vector;
-Shader Simulator_OpenGL::m_shader_vector_map;
 Shader Simulator_OpenGL::m_meshShader;
 GLuint Simulator_OpenGL::m_textureMap = 0;
 
@@ -60,19 +63,6 @@ void Simulator_OpenGL::initShaders(const std::string &shaderPath)
 	m_shader_scalar.end();
 
 	string fragFileMap = shaderPath + "/fs_points_colormap.glsl";
-	m_shader_vector_map.compileShaderFile(GL_VERTEX_SHADER, vertFile);
-	m_shader_vector_map.compileShaderFile(GL_FRAGMENT_SHADER, fragFileMap);
-	m_shader_vector_map.createAndLinkProgram();
-	m_shader_vector_map.begin();
-	m_shader_vector_map.addUniform("modelview_matrix");
-	m_shader_vector_map.addUniform("projection_matrix");
-	m_shader_vector_map.addUniform("radius");
-	m_shader_vector_map.addUniform("viewport_width");
-	m_shader_vector_map.addUniform("color");
-	m_shader_vector_map.addUniform("min_scalar");
-	m_shader_vector_map.addUniform("max_scalar");
-	m_shader_vector_map.end();
-
 	m_shader_scalar_map.compileShaderFile(GL_VERTEX_SHADER, vertFileScalar);
 	m_shader_scalar_map.compileShaderFile(GL_FRAGMENT_SHADER, fragFileMap);
 	m_shader_scalar_map.createAndLinkProgram();
@@ -173,7 +163,7 @@ void Simulator_OpenGL::pointShaderEnd(Shader *shader, const bool useTexture)
 }
 
 void Simulator_OpenGL::renderFluid(FluidModel *model, float *fluidColor,
-	const unsigned int colorMapType, const std::string &colorFieldName,
+	const unsigned int colorMapType, const bool useScalarField, const std::vector<float> &scalarField,
 	const Real renderMinValue, const Real renderMaxValue)
 {
 	// Draw simulation model
@@ -197,28 +187,25 @@ void Simulator_OpenGL::renderFluid(FluidModel *model, float *fluidColor,
 
 	if (MiniGL::checkOpenGLVersion(3, 3))
 	{
-		Shader *shader_vector = &m_shader_vector_map;
 		Shader *shader_scalar = &m_shader_scalar_map;
 		float const *color_map = nullptr;
 		if (colorMapType == 1)
 			color_map = reinterpret_cast<float const*>(colormap_jet);
 		else if (colorMapType == 2)
 			color_map = reinterpret_cast<float const*>(colormap_plasma);
+		else if (colorMapType == 3)
+			color_map = reinterpret_cast<float const*>(colormap_coolwarm);
+		else if (colorMapType == 4)
+			color_map = reinterpret_cast<float const*>(colormap_bwr);
+		else if (colorMapType == 5)
+			color_map = reinterpret_cast<float const*>(colormap_seismic);
 
 		if (colorMapType == 0)
-		{
-			shader_vector = &m_shader_vector;
 			shader_scalar = &m_shader_scalar;
-		}
 
-		const FieldDescription *field = nullptr;
-		field = &model->getField(colorFieldName);
-
-		if (field == nullptr)
+		if (!useScalarField)
 			pointShaderBegin(shader_scalar, particleRadius, &fluidColor[0], renderMinValue, renderMaxValue, false);
-		else if (field->type == FieldType::Vector3)
-			pointShaderBegin(shader_vector, particleRadius, &fluidColor[0], renderMinValue, renderMaxValue, true, color_map);
-		else if (field->type == FieldType::Scalar)
+		else 
 			pointShaderBegin(shader_scalar, particleRadius, &fluidColor[0], renderMinValue, renderMaxValue, true, color_map);
 
 		if (model->numActiveParticles() > 0)
@@ -226,18 +213,10 @@ void Simulator_OpenGL::renderFluid(FluidModel *model, float *fluidColor,
 			glEnableVertexAttribArray(0);
 			glVertexAttribPointer(0, 3, GL_REAL, GL_FALSE, 0, &model->getPosition(0));
 
-			if (field != nullptr)
+			if (useScalarField)
 			{
-				if (field->type == FieldType::Vector3)
-				{
-					glEnableVertexAttribArray(1);
-					glVertexAttribPointer(1, 3, GL_REAL, GL_FALSE, 0, field->getFct(0));
-				}
-				else if (field->type == FieldType::Scalar)
-				{
-					glEnableVertexAttribArray(1);
-					glVertexAttribPointer(1, 1, GL_REAL, GL_FALSE, 0, field->getFct(0));
-				}
+				glEnableVertexAttribArray(1);
+				glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 0, &scalarField[0]);
 			}
 
 			glDrawArrays(GL_POINTS, 0, model->numActiveParticles());
@@ -245,11 +224,9 @@ void Simulator_OpenGL::renderFluid(FluidModel *model, float *fluidColor,
 			glDisableVertexAttribArray(1);
 		}
 
-		if (field == nullptr)
+		if (!useScalarField)
 			pointShaderEnd(shader_scalar, false);
-		else if (field->type == FieldType::Vector3)
-			pointShaderEnd(shader_vector, true);
-		else if (field->type == FieldType::Scalar)
+		else 
 			pointShaderEnd(shader_scalar, true);
 	}
 	else
@@ -274,7 +251,7 @@ void Simulator_OpenGL::renderFluid(FluidModel *model, float *fluidColor,
 }
 
 void Simulator_OpenGL::renderSelectedParticles(FluidModel *model, const std::vector<std::vector<unsigned int>>& selectedParticles,
-		const unsigned int colorMapType, const std::string &colorFieldName,
+		const unsigned int colorMapType, 
 		const Real renderMinValue, const Real renderMaxValue)
 {
 	float red[4] = { 0.8f, 0.0f, 0.0f, 1 };
@@ -317,21 +294,23 @@ void Simulator_OpenGL::renderSelectedParticles(FluidModel *model, const std::vec
 
 }
 
-void Simulator_OpenGL::renderBoundaryParticles(BoundaryModel_Akinci2012 *model, const float *col)
+void Simulator_OpenGL::renderBoundaryParticles(BoundaryModel_Akinci2012 *model, const float *col,
+	const Real renderMinValue, const Real renderMaxValue)
 {
 	Simulation *sim = Simulation::getCurrent();
 	const Real particleRadius = sim->getParticleRadius();
 
 	if (MiniGL::checkOpenGLVersion(3, 3))
 	{
-		Simulator_OpenGL::pointShaderBegin(&m_shader_scalar, particleRadius, col, 0.0, 100000.0);
+		Simulator_OpenGL::pointShaderBegin(&m_shader_vector, particleRadius, col, renderMinValue, renderMaxValue);
 		glEnableVertexAttribArray(0);
-
 		glVertexAttribPointer(0, 3, GL_REAL, GL_FALSE, 0, &model->getPosition(0)[0]);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_REAL, GL_FALSE, 0, &model->getVelocity(0)[0]);
 		glDrawArrays(GL_POINTS, 0, model->numberOfParticles());
 		glDisableVertexAttribArray(0);
-
-		Simulator_OpenGL::pointShaderEnd(&m_shader_scalar);
+		glDisableVertexAttribArray(1);
+		Simulator_OpenGL::pointShaderEnd(&m_shader_vector);
 	}
 	else
 	{

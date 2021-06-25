@@ -14,13 +14,20 @@
    about
    getting_started
    file_format
+   replicability
 
 
 .. toctree::
    :maxdepth: 2
    :caption: Developer Guide:
 
+   build_from_source
    cmake_options
+   architecture
+   implement_nonpressure_force
+   implement_exporter
+   creating_pressure
+   macros
 
 
 .. toctree::
@@ -28,8 +35,20 @@
    :caption: Python Package:
 
    py_getting_started
+   py_embedded_python
    py_creating_scenes
    py_restrictions
+
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tools:
+
+   FoamGenerator
+   partio2vtk
+   PartioViewer
+   SurfaceSampling
+   VolumeSampling
 
 
 .. toctree::

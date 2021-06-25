@@ -3,6 +3,9 @@
 #include "GUI/OpenGL/MiniGL.h"
 #include "GUI/OpenGL/colormaps/colormap_jet.h"
 #include "GUI/OpenGL/colormaps/colormap_plasma.h"
+#include "GUI/OpenGL/colormaps/colormap_bwr.h"
+#include "GUI/OpenGL/colormaps/colormap_coolwarm.h"
+#include "GUI/OpenGL/colormaps/colormap_seismic.h"
 #include "../../PartioViewer.h"
 
 using namespace std;
@@ -11,10 +14,8 @@ using namespace SPH;
 Shader PartioViewer_OpenGL::m_shader_scalar;
 Shader PartioViewer_OpenGL::m_shader_scalar_map;
 Shader PartioViewer_OpenGL::m_shader_vector;
-Shader PartioViewer_OpenGL::m_shader_vector_map;
 Shader PartioViewer_OpenGL::m_meshShader;
 GLuint PartioViewer_OpenGL::m_textureMap = 0;
-
 
 PartioViewer_OpenGL::PartioViewer_OpenGL()
 {
@@ -84,19 +85,6 @@ void PartioViewer_OpenGL::initShaders(const std::string &shaderPath)
 	m_shader_scalar.end();
 
 	string fragFileMap = shaderPath + "/fs_points_colormap.glsl";
-	m_shader_vector_map.compileShaderFile(GL_VERTEX_SHADER, vertFile);
-	m_shader_vector_map.compileShaderFile(GL_FRAGMENT_SHADER, fragFileMap);
-	m_shader_vector_map.createAndLinkProgram();
-	m_shader_vector_map.begin();
-	m_shader_vector_map.addUniform("modelview_matrix");
-	m_shader_vector_map.addUniform("projection_matrix");
-	m_shader_vector_map.addUniform("radius");
-	m_shader_vector_map.addUniform("viewport_width");
-	m_shader_vector_map.addUniform("color");
-	m_shader_vector_map.addUniform("min_scalar");
-	m_shader_vector_map.addUniform("max_scalar");
-	m_shader_vector_map.end();
-
 	m_shader_scalar_map.compileShaderFile(GL_VERTEX_SHADER, vertFileScalar);
 	m_shader_scalar_map.compileShaderFile(GL_FRAGMENT_SHADER, fragFileMap);
 	m_shader_scalar_map.createAndLinkProgram();
@@ -213,7 +201,8 @@ void PartioViewer_OpenGL::renderGrid()
 
 void PartioViewer_OpenGL::render(const Fluid &fluid, const Real particleRadius, 
 		float *fluidColor, const unsigned int colorMapType, const unsigned int colorField,
-		const float renderMinValue, const float renderMaxValue, const bool usePlane)
+		const std::vector<float>& scalarField, const float renderMinValue, const float renderMaxValue, 
+		const bool usePlane)
 {
 	// Draw simulation model
 	const unsigned int nParticles = (unsigned int)fluid.partioData->numParticles();
@@ -224,33 +213,26 @@ void PartioViewer_OpenGL::render(const Fluid &fluid, const Real particleRadius,
 
 	if (MiniGL::checkOpenGLVersion(3, 3))
 	{
-		Shader *shader_vec = &m_shader_vector_map;
 		Shader *shader_s = &m_shader_scalar_map;
 		float const *color_map = nullptr;
 		if (colorMapType == 1)
 			color_map = reinterpret_cast<float const*>(colormap_jet);
 		else if (colorMapType == 2)
 			color_map = reinterpret_cast<float const*>(colormap_plasma);
+		else if (colorMapType == 3)
+			color_map = reinterpret_cast<float const*>(colormap_coolwarm);
+		else if (colorMapType == 4)
+			color_map = reinterpret_cast<float const*>(colormap_bwr);
+		else if (colorMapType == 5)
+			color_map = reinterpret_cast<float const*>(colormap_seismic);
 
 		if (colorMapType == 0)
-		{
-			shader_vec = &m_shader_vector;
 			shader_s = &m_shader_scalar;
-		}
 
 		if (fluid.partioData->numAttributes() == 0)
 			pointShaderBegin(shader_s, particleRadius, fluidColor, renderMinValue, renderMaxValue, false);
 		else
-		{
-			Partio::ParticleAttribute attr;
-			fluid.partioData->attributeInfo(colorField, attr);
-
-			if (attr.type == Partio::VECTOR)
-				pointShaderBegin(shader_vec, particleRadius, fluidColor, renderMinValue, renderMaxValue, true, color_map);
-			else if (attr.type == Partio::FLOAT)
-				pointShaderBegin(shader_s, particleRadius, fluidColor, renderMinValue, renderMaxValue, true, color_map);
-		}
-
+			pointShaderBegin(shader_s, particleRadius, fluidColor, renderMinValue, renderMaxValue, true, color_map);
 
 		if (nParticles > 0)
 		{
@@ -259,22 +241,8 @@ void PartioViewer_OpenGL::render(const Fluid &fluid, const Real particleRadius,
 
 			if (fluid.partioData->numAttributes() > 0)
 			{
-				Partio::ParticleAttribute attr;
-				fluid.partioData->attributeInfo(colorField, attr);
-
-				const float* partioVals = NULL;
-				if (attr.type == Partio::VECTOR)
-				{
-					glEnableVertexAttribArray(1);
-					partioVals = fluid.partioData->data<float>(attr, 0);
-					glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, &partioVals[0]);
-				}
-				else if (attr.type == Partio::FLOAT)
-				{
-					glEnableVertexAttribArray(1);
-					partioVals = fluid.partioData->data<float>(attr, 0);
-					glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 0, &partioVals[0]);
-				}
+				glEnableVertexAttribArray(1);
+				glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 0, &scalarField[0]);
 			}
 
 			if (usePlane)
@@ -289,14 +257,7 @@ void PartioViewer_OpenGL::render(const Fluid &fluid, const Real particleRadius,
 		if (fluid.partioData->numAttributes() == 0)
 			pointShaderEnd(shader_s, false);
 		else
-		{
-			Partio::ParticleAttribute attr;
-			fluid.partioData->attributeInfo(colorField, attr);
-			if (attr.type == Partio::VECTOR)
-				pointShaderEnd(shader_vec, true);
-			else if (attr.type == Partio::FLOAT)
-				pointShaderEnd(shader_s, true);
-		}
+			pointShaderEnd(shader_s, true);
 	}
 	else
 	{
@@ -436,4 +397,5 @@ void PartioViewer_OpenGL::hsvToRgb(float h, float s, float v, float *rgb)
 	case 5: rgb[0] = v, rgb[1] = p, rgb[2] = q; break;
 	}
 }
+
 

@@ -1,3 +1,45 @@
+2.10.1
+	- added new foam generator tool to generate spray, foam and bubble particles in a postprocessing step in order to improve the visual realism of the final rendering
+	- added documentation of the foam generator
+
+2.10.0
+	- added support of embedded Python scripts (must be activated in CMake)
+	- added possibility to animate rigid bodies in Python
+	- added Implicit Compressible SPH pressure solver by Gissler et al. 2020
+	- fixed bug in AnimationField (thanks to Lukas Westhofen)
+	- improved stability of volume maps
+
+2.9.2
+	- added ParaView partio plugin
+	- extended tooltips by json key
+	- small avx improvements
+	- fluid can have an initial angular velocity
+	- improved Maya plugin
+	- added support of asynchronous file writing in the partio exporter
+	- added reset callback 
+2.9.1
+	- added documentation about how to implement an exporter
+	- added a Python data exporter example (can export rigid bodies in all formats supported by meshio)
+	- added an OBJ rigid body exporter
+	- implemented a simple interface to register own particle and rigid body exporters
+	- extracted the scene configuration in a singleton class
+	- simplified the interface to register a new non-pressure force
+
+2.9.0 
+	- added new surface tension model (thanks to Fernando Zorilla and Marcel Ritter)
+	- added a test for reading and writing the state of a simulation
+	- updated to Eigen 3.3.8
+	- added a hotkey (m) to rescale the range of the current color map
+	- color maps range is determined automatically
+	- all particle fields can now be used for rendering
+	- improved stability of implicit boundary handling
+	- improved documentation
+	- added DebugTools class which generates additional particle data for debugging
+	- added Python example to add a particle field, this can be used for visual debugging or to export additional data per particle
+	- updated pybind
+	- improved warmstart
+	- added build instructions
+	- added more colormaps
 	- improved documentation
 	- added version file
 

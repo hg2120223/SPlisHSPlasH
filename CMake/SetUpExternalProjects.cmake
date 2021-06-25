@@ -33,7 +33,7 @@ ExternalProject_Add(
 	Ext_GenericParameters
 	PREFIX "${CMAKE_BINARY_DIR}/extern/GenericParameters"
 	GIT_REPOSITORY https://github.com/InteractiveComputerGraphics/GenericParameters.git
-	GIT_TAG "5e43547e9d7099ac0759b75fa5e4e2115ca9cc9f"
+	GIT_TAG "89ae733fb8b8b9df25d0e44a0e49e51136901e8c"
 	INSTALL_DIR ${ExternalInstallDir}/GenericParameters
 	CMAKE_ARGS -DCMAKE_BUILD_TYPE=${EXT_CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX:PATH=${ExternalInstallDir}/GenericParameters -DGENERICPARAMETERS_NO_TESTS:BOOL=1 -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
 )
@@ -47,7 +47,7 @@ ExternalProject_Add(
 	Ext_PBD
 	PREFIX "${CMAKE_BINARY_DIR}/extern/PositionBasedDynamics"
 	GIT_REPOSITORY https://github.com/InteractiveComputerGraphics/PositionBasedDynamics.git
-	GIT_TAG "abd45249c2763cdd07497c314344f7749042e199"
+	GIT_TAG "67cea4478d58de55f64f78fcfea16629bfb79152"
 	INSTALL_DIR ${ExternalInstallDir}/PositionBasedDynamics
 	DEPENDS Ext_GenericParameters Ext_Discregrid
 	CMAKE_ARGS -DCMAKE_BUILD_TYPE=${EXT_CMAKE_BUILD_TYPE}

@@ -61,6 +61,7 @@ Example code:
 * enablePartioExport (bool): Enable/disable partio export (default: false).
 * enableVTKExport (bool): Enable/disable VTK export (default: false).
 * enableRigidBodyExport (bool): Enable/disable rigid body export (default: false).
+* enableRigidBodyVTKExport (bool): Enable/disable rigid body VTK export (default: false).
 * dataExportFPS (float): Frame rate of particle and rigid body export (default: 25).
 * particleAttributes (string): A list of attribute names separated by ";" that should be exported in the particle files (e.g. "velocity;density") (default: "velocity").
 * enableStateExport (bool): Enable/disable export of complete simulation state (default: false).
@@ -69,7 +70,7 @@ Example code:
 ##### Simulation:
 
 * timeStepSize (float): The initial time step size used for the time integration. If you use an adaptive time stepping, this size will change during the simulation (default: 0.001).
-* particleRadius (float): The radius of the particls in the simulation (all have the same radius) (default: 0.025).
+* particleRadius (float): The radius of the particles in the simulation (all have the same radius) (default: 0.025).
 * sim2D (bool): If this parameter is set to true, a 2D simulation is performend instead of a 3D simulation (default: false).
 * enableZSort (bool): Enable z-sort to improve cache hits and therefore to improve the performance (default: true).
 * gravitation (vec3): Vector to define the gravitational acceleration (default: [0,-9.81,0]).
@@ -86,6 +87,7 @@ Example code:
     - 3: Implicit incompressible SPH (IISPH)
     - 4: Divergence-free smoothed particle hydrodynamics (DFSPH)
     - 5: Projective Fluids (dynamic boundaries not supported yet)
+    - 6: Implicit compressible SPH (ICSPH)
 
 
 ##### WCSPH parameters:
@@ -108,6 +110,11 @@ Example code:
 ##### Projective Fluids parameters:
 
 * stiffness (float): Stiffness coefficient used by the pressure solver.
+
+##### ICSPH parameters:
+
+* lambda (float): Stiffness coefficient of the equation of state.
+* pressureClamping (bool): Enable pressure clamping.
 
 ##### Kernel: 
 
@@ -160,8 +167,8 @@ Example code:
 ]	
 ```
 
-* start (vec3): Minimum corrdinate of the box which defines the fluid block.
-* end (vec3): Maximum corrdinate of the box which defines the fluid block.
+* start (vec3): Minimum coordinate of the box which defines the fluid block.
+* end (vec3): Maximum coordinate of the box which defines the fluid block.
 * translation (vec3): Translation vector of the block.
 * scale (vec3): Scaling vector of the block. 
 * denseMode (int): 
@@ -169,6 +176,7 @@ Example code:
   - 1: more dense sampling
   - 2: dense sampling
 * initialVelocity (vec3): The initial velocity is set for all particles in the block.
+* initialAngularVelocity (vec3): The initial angular velocity of the block.
 * id (string): This id is used in the "Fluid parameter block" (see below) to define the properties of the fluid block. If no id is defined, then the standard id "Fluid" is used.
 
 ## FluidModels
@@ -194,6 +202,8 @@ Example code:
 * rotationAxis (vec3): Axis used to rotate the particle data after loading.
 * rotationAngle (float): Rotation angle for the initial rotation of the particle data. 
 * id: This id is used in the "Fluid parameter block" (see below) to define the properties of the fluid block. If no id is defined, then the standard id "Fluid" is used.
+* initialVelocity (vec3): The initial velocity is set for all particles in the fluid model.
+* initialAngularVelocity (vec3): The initial angular velocity of the fluid model.
 
 ## Emitters
 
@@ -219,8 +229,8 @@ Example code:
 * type (int): Defines the shape of the emitter (default: 0).
   - 0: box
   - 1: circle
-* width (int): Width of the box or radius of the circle emitter (default: 5).
-* height (int): Height of the box (is only used for type 0) (default: 5).
+* width (int): Width of the box or radius of the circle emitter in number of particles (default: 5).
+* height (int): Height of the box in number of particles (is only used for type 0) (default: 5).
 * translation (vec3): Translation vector of the emitter (default: [0,0,0]).
 * rotationAxis (vec3): Axis used to rotate the emitter. Note that in 2D simulations the axis is always set to [0,0,1] (default: [0,0,1]).
 * rotationAngle (float): Rotation angle for the initial rotation of the emitter (default: 0). 
@@ -308,6 +318,9 @@ Example code:
   - 0: None
   - 1: Jet
   - 2: Plasma
+  - 3: CoolWarm
+  - 4: BlueWhiteRed
+  - 5: Seismic
 * renderMinValue (float): Minimal value used for color-coding the color field in the rendering process.
 * renderMaxValue (float): Maximal value used for color-coding the color field in the rendering process.
 
@@ -323,6 +336,9 @@ Example code:
   - 6: Takahashi et al. 2015 (improved)
   - 7: Weiler et al. 2018
 * viscosity (float): Coefficient for the viscosity force computation
+  * "Standard" and "Weiler et al. 2018" use the kinematic viscosity as parameter
+  * "Bender and Koschier 2017" and "Peer et al. 2015/2016" use a coefficient in [0,1]
+  * For "XSPH" the coefficient is the smoothing parameter in [0,1]
 * viscoMaxIter (int): (Implicit solvers) Max. iterations of the viscosity solver.
 * viscoMaxError (float): (Implicit solvers) Max. error of the viscosity solver.
 * viscoMaxIterOmega (int): (Peer et al. 2016) Max. iterations of the vorticity diffusion solver.
@@ -366,7 +382,7 @@ Example code:
 * youngsModulus (float): Young's modulus - coefficient for the stiffness of the material (default: 100000.0)
 * poissonsRatio (float): Poisson's ratio - measure of the Poisson effect (default: 0.3)
 * alpha (float): Coefficent for zero-energy modes suppression method (default: 0.0)
-* elasticityMaxIter (float): (Peer et al. 2018) Maximum solver iterations (default: 100)
+* elasticityMaxIter (int): (Peer et al. 2018) Maximum solver iterations (default: 100)
 * elasticityMaxError (float): (Peer et al. 2019) Maximum elasticity error allowed by the solver (default: 1.0e-4)
 
 ##### Magnetic force

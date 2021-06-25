@@ -11,10 +11,12 @@
 #include "SPlisHSPlasH/BoundaryModel_Bender2019.h"
 #include "SPlisHSPlasH/TriangleMesh.h"
 #include "BoundarySimulator.h"
+#include <Simulator/ScriptObject.h>
 
 namespace SPH
 {
 	class Simulator_GUI_Base;
+	class ExporterBase;
 
 	class SimulatorBase : public GenParam::ParameterObject
 	{
@@ -26,25 +28,31 @@ namespace SPH
 			FluidModel model;
 		};
 
+		struct Exporter
+		{
+			std::string m_key;
+			std::string m_name;
+			std::string m_description;
+			ExporterBase* m_exporter;
+			int m_id;
+		};
+
 	protected:
 		unsigned int m_numberOfStepsPerRenderUpdate;
 		std::string m_exePath;
 		std::string m_stateFile;
 		std::string m_outputPath;
-		std::string m_sceneFile;
 		bool m_useParticleCaching;
 		bool m_useGUI;
 		bool m_isStaticScene;
-		Utilities::SceneLoader::Scene m_scene;
 		int m_renderWalls;
 		bool m_doPause;
 		Real m_pauseAt;
 		Real m_stopAt;
-		bool m_enablePartioExport;
-		bool m_enableVTKExport;
 		bool m_enableRigidBodyVTKExport;
 		bool m_enableRigidBodyExport;
 		bool m_enableStateExport;
+		bool m_enableAsyncExport;
 		Real m_framesPerSecond;
 		Real m_framesPerSecondState;
 		std::string m_particleAttributes;
@@ -69,13 +77,22 @@ namespace SPH
 		std::string m_windowName;
 		std::vector<std::string> m_paramTokens;
 		std::function<void()> m_timeStepCB;
+		std::function<void()> m_resetCB;
+		std::vector<std::vector<float>> m_scalarField;
+		std::vector<Exporter> m_particleExporters;
+		std::vector<Exporter> m_rbExporters;
+		bool m_updateGUI;
 #ifdef DL_OUTPUT
 		Real m_nextTiming;
+#endif
+#ifdef USE_EMBEDDED_PYTHON
+		ScriptObject* m_scriptObject;
 #endif
 
 		virtual void initParameters();
 
 		void initFluidData();
+		void setInitialVelocity(const Vector3r &vel, const Vector3r & angVel, const unsigned int numParticles, Vector3r *fluidParticles, Vector3r *fluidVelocities);
 		void createFluidBlocks(std::map<std::string, unsigned int> &fluidIDs, std::vector<std::vector<Vector3r>> &fluidParticles, std::vector<std::vector<Vector3r>> &fluidVelocities);
 		void createEmitters();
 		void createAnimationFields();
@@ -83,19 +100,20 @@ namespace SPH
 		void setCommandLineParameter();
 		void setCommandLineParameter(GenParam::ParameterObject *paramObj);
 
+		void createExporters();
+		void cleanupExporters();
+		void initExporters();
+
 	public:
 		static int PAUSE;
 		static int PAUSE_AT;
 		static int STOP_AT;
 		static int NUM_STEPS_PER_RENDER;
-		static int PARTIO_EXPORT;
-		static int VTK_EXPORT;
-		static int RB_VTK_EXPORT;
-		static int RB_EXPORT;
 		static int DATA_EXPORT_FPS;
 		static int PARTICLE_EXPORT_ATTRIBUTES;
 		static int STATE_EXPORT;
 		static int STATE_EXPORT_FPS;
+		static int ASYNC_EXPORT;
 		static int RENDER_WALLS;
 		
 		static int ENUM_WALLS_NONE;
@@ -113,6 +131,12 @@ namespace SPH
 		void init(std::vector<std::string> argv, const std::string &windowName);
 		void init(int argc, char **argv, const std::string &windowName);
         void initSimulation();
+		/** This function is called after the simulation scene is loaded and all
+		* parameters are initialized. While reading a scene file several parameters
+		* can change. The deferred init function should initialize all values which
+		* depend on these parameters.
+		*/
+		void deferredInit();
 		void runSimulation();
 		void cleanup();
 
@@ -121,23 +145,19 @@ namespace SPH
 		bool timeStepNoGUI();
 
 		void setTimeStepCB(std::function<void()> const& callBackFct) { m_timeStepCB = callBackFct; }
+		void setResetCB(std::function<void()> const& callBackFct) { m_resetCB = callBackFct; }
 
 		static void particleInfo(std::vector<std::vector<unsigned int>> &particles);
 
-		std::string real2String(const Real r);
 		void initDensityMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool md5, const bool isDynamic, BoundaryModel_Koschier2017 *boundaryModel);
 		void initVolumeMap(std::vector<Vector3r> &x, std::vector<unsigned int> &faces, const Utilities::SceneLoader::BoundaryData *boundaryData, const bool md5, const bool isDynamic, BoundaryModel_Bender2019 *boundaryModel);
 
 		void readParameters();
-		void particleExport();
-		void rigidBodyExport();
-		void writeParticlesPartio(const std::string &fileName, FluidModel *model);
-		void writeParticlesVTK(const std::string &fileName, FluidModel *model);
-		void writeRigidBodiesBIN(const std::string &exportPath);
-		void writeRigidBodiesVTK(const std::string &exportPath);
+
 		void step();
 
-		void saveState();
+		void singleTimeStep();
+		void saveState(const std::string& stateFile = "");
 		void loadStateDialog();
 		void loadState(const std::string &stateFile);
 		void writeFluidParticlesState(const std::string &fileName, FluidModel *model);
@@ -152,16 +172,16 @@ namespace SPH
 		void updateBoundaryParticles(const bool forceUpdate);
 		void updateDMVelocity();
 		void updateVMVelocity();
-		void updateBoundaryForces();
+
+		std::vector<float>& getScalarField(const unsigned int i) { return m_scalarField[i]; }
+		void updateScalarField();
+		void determineMinMaxOfScalarField();
 
 		static void loadObj(const std::string &filename, TriangleMesh &mesh, const Vector3r &scale);
 
 		Utilities::SceneLoader *getSceneLoader() { return m_sceneLoader.get(); }
 
 		const std::string& getExePath() const { return m_exePath; }
-		const std::string& getSceneFile() const { return m_sceneFile; }
-
-		Utilities::SceneLoader::Scene& getScene() { return m_scene; }
 
 		bool getUseParticleCaching() const { return m_useParticleCaching; }
 		void setUseParticleCaching(bool val) { m_useParticleCaching = val; }
@@ -179,16 +199,6 @@ namespace SPH
 		void setRenderMinValue(const unsigned int fluidModelIndex, Real val) { m_renderMinValue[fluidModelIndex] = val; }
 		std::string getOutputPath() const { return m_outputPath; }
 
-		// VTK expects big endian
-		template<typename T>
-		inline void swapByteOrder(T*v)
-		{
-			constexpr size_t n = sizeof(T);
-			uint8_t * bytes = reinterpret_cast<uint8_t*>(v);
-			for (unsigned int c = 0u; c < n / 2; c++)
-				std::swap(bytes[c], bytes[n - c - 1]);
-		}
-
 		std::string getStateFile() const { return m_stateFile; }
 		void setStateFile(std::string val) { m_stateFile = val; }
 
@@ -197,6 +207,20 @@ namespace SPH
 		SPH::Simulator_GUI_Base * getGui() const { return m_gui; }
 		void setGui(SPH::Simulator_GUI_Base * val) { m_gui = val; }
 		bool isStaticScene() const { return m_isStaticScene; }
+
+		void addParticleExporter(const std::string& key, const std::string& name, const std::string& description, ExporterBase* exporter) { m_particleExporters.push_back({ key, name, description, exporter, -1 }); }
+		std::vector<Exporter>& getParticleExporters() { return m_particleExporters; }
+
+		void addRigidBodyExporter(const std::string& key, const std::string& name, const std::string& description, ExporterBase* exporter) { m_rbExporters.push_back({ key, name, description, exporter, -1 }); }
+		std::vector<Exporter>& getRigidBodyExporters() { return m_rbExporters; }
+
+		void activateExporter(const std::string& exporterName, const bool active);
+
+		void updateGUI() { m_updateGUI = true; }
+
+#ifdef USE_EMBEDDED_PYTHON
+		ScriptObject* getScriptObject() { return m_scriptObject; }
+#endif 
 	};
 }
  

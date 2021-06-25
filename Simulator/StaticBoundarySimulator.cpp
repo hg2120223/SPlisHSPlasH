@@ -9,6 +9,7 @@
 #include "SPlisHSPlasH/Utilities/SurfaceSampling.h"
 #include "Utilities/OBJLoader.h"
 #include "SPlisHSPlasH/TriangleMesh.h"
+#include "Simulator/SceneConfiguration.h"
 
 using namespace std;
 using namespace SPH;
@@ -60,9 +61,10 @@ void StaticBoundarySimulator::loadObj(const std::string &filename, TriangleMesh 
 
 void StaticBoundarySimulator::initBoundaryData()
 {
-	std::string scene_path = FileSystem::getFilePath(m_base->getSceneFile());
-	std::string scene_file_name = FileSystem::getFileName(m_base->getSceneFile());
-	SceneLoader::Scene &scene = m_base->getScene();
+	const std::string& sceneFile = SceneConfiguration::getCurrent()->getSceneFile();
+	const Utilities::SceneLoader::Scene& scene = SceneConfiguration::getCurrent()->getScene();
+	std::string scene_path = FileSystem::getFilePath(sceneFile);
+	std::string scene_file_name = FileSystem::getFileName(sceneFile);
 	// no cache for 2D scenes
 	// 2D sampling is fast, but storing it would require storing the transformation as well
 	const bool useCache = m_base->getUseParticleCaching() && !scene.sim2D;
@@ -87,6 +89,7 @@ void StaticBoundarySimulator::initBoundaryData()
 		}
 
 		StaticRigidBody *rb = new StaticRigidBody();
+		rb->setIsAnimated(scene.boundaryModels[i]->isAnimated);
 		TriangleMesh &geo = rb->getGeometry();
 		loadObj(meshFileName, geo, scene.boundaryModels[i]->scale);
 
@@ -97,7 +100,7 @@ void StaticBoundarySimulator::initBoundaryData()
 			if (scene.boundaryModels[i]->samplesFile != "")
 			{
 				string particleFileName = scene_path + "/" + scene.boundaryModels[i]->samplesFile;
-				PartioReaderWriter::readParticles(particleFileName, scene.boundaryModels[i]->translation, scene.boundaryModels[i]->rotation, scene.boundaryModels[i]->scale[0], boundaryParticles);
+				PartioReaderWriter::readParticles(particleFileName, Vector3r::Zero(), Matrix3r::Identity(), scene.boundaryModels[i]->scale[0], boundaryParticles);
 			}
 			else		// if no samples file is given, sample the surface model
 			{
@@ -105,9 +108,9 @@ void StaticBoundarySimulator::initBoundaryData()
 				std::string mesh_base_path = FileSystem::getFilePath(scene.boundaryModels[i]->meshFile);
 				std::string mesh_file_name = FileSystem::getFileName(scene.boundaryModels[i]->meshFile);
 
-				const string resStr = m_base->real2String(scene.boundaryModels[i]->scale[0]) + "_" + m_base->real2String(scene.boundaryModels[i]->scale[1]) + "_" + m_base->real2String(scene.boundaryModels[i]->scale[2]);
+				const string resStr = StringTools::real2String(scene.boundaryModels[i]->scale[0]) + "_" + StringTools::real2String(scene.boundaryModels[i]->scale[1]) + "_" + StringTools::real2String(scene.boundaryModels[i]->scale[2]);
 				const string modeStr = "_m" + std::to_string(scene.boundaryModels[i]->samplingMode);
-				const string particleFileName = FileSystem::normalizePath(cachePath + "/" + mesh_file_name + "_sb_" + m_base->real2String(scene.particleRadius) + "_" + resStr + modeStr + ".bgeo");
+				const string particleFileName = FileSystem::normalizePath(cachePath + "/" + mesh_file_name + "_sb_" + StringTools::real2String(scene.particleRadius) + "_" + resStr + modeStr + ".bgeo");
 
 				// check MD5 if cache file is available
 				bool foundCacheFile = false;
@@ -117,7 +120,7 @@ void StaticBoundarySimulator::initBoundaryData()
 
 				if (useCache && foundCacheFile && md5)
 				{
-					PartioReaderWriter::readParticles(particleFileName, scene.boundaryModels[i]->translation, scene.boundaryModels[i]->rotation, 1.0, boundaryParticles);
+					PartioReaderWriter::readParticles(particleFileName, Vector3r::Zero(), Matrix3r::Identity(), 1.0, boundaryParticles);
 					LOG_INFO << "Loaded cached boundary sampling: " << particleFileName;
 				}
 
@@ -157,7 +160,7 @@ void StaticBoundarySimulator::initBoundaryData()
 						LOG_INFO << "2D regular sampling of " << meshFileName;
 						START_TIMING("2D regular sampling");
 						RegularSampling2D sampling;
-						sampling.sampleMesh(scene.boundaryModels[i]->rotation, scene.boundaryModels[i]->translation,
+						sampling.sampleMesh(Matrix3r::Identity(), Vector3r::Zero(),
 							geo.numVertices(), geo.getVertices().data(), geo.numFaces(),
 							geo.getFaces().data(), 1.75f * scene.particleRadius, boundaryParticles);
 						STOP_TIMING_AVG;
@@ -169,19 +172,15 @@ void StaticBoundarySimulator::initBoundaryData()
 						LOG_INFO << "Save particle sampling: " << particleFileName;
 						PartioReaderWriter::writeParticles(particleFileName, (unsigned int)boundaryParticles.size(), boundaryParticles.data(), nullptr, scene.particleRadius);
 					}
-
-					// transform particles
-					if (!scene.sim2D)
-						for (unsigned int j = 0; j < (unsigned int)boundaryParticles.size(); j++)
-							boundaryParticles[j] = scene.boundaryModels[i]->rotation * boundaryParticles[j] + scene.boundaryModels[i]->translation;
 				}
 			}
 		}
 
-		rb->setWorldSpacePosition(scene.boundaryModels[i]->translation);
-		rb->setWorldSpaceRotation(scene.boundaryModels[i]->rotation);
+		Quaternionr q(scene.boundaryModels[i]->rotation);
+		rb->setPosition0(scene.boundaryModels[i]->translation);
 		rb->setPosition(scene.boundaryModels[i]->translation);
-		rb->setRotation(scene.boundaryModels[i]->rotation);
+		rb->setRotation0(q);
+		rb->setRotation(q);
 
 		if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Akinci2012)
 		{
@@ -207,19 +206,57 @@ void StaticBoundarySimulator::initBoundaryData()
 		}
 		if (useCache && !md5)
 			FileSystem::writeMD5File(meshFileName, md5FileName);
-		for (unsigned int j = 0; j < geo.numVertices(); j++)
-			geo.getVertices()[j] = scene.boundaryModels[i]->rotation * geo.getVertices()[j] + scene.boundaryModels[i]->translation;
-
-		geo.updateNormals();
-		geo.updateVertexNormals();
-
+		rb->updateMeshTransformation();
 	}
+}
+
+void StaticBoundarySimulator::deferredInit()
+{
+	Simulation* sim = Simulation::getCurrent();
 	sim->performNeighborhoodSearchSort();
 	if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Akinci2012)
-		sim->updateBoundaryVolume();
+	{
+		m_base->updateBoundaryParticles(true);
+		Simulation::getCurrent()->updateBoundaryVolume();
+	}
+	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Koschier2017)
+		m_base->updateDMVelocity();
+	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Bender2019)
+		m_base->updateVMVelocity();
 
 #ifdef GPU_NEIGHBORHOOD_SEARCH
 	// copy the particle data to the GPU
 	sim->getNeighborhoodSearch()->update_point_sets();
 #endif 
+}
+
+void StaticBoundarySimulator::timeStep()
+{
+	Simulation* sim = Simulation::getCurrent();
+	if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Akinci2012)
+		m_base->updateBoundaryParticles(false);
+	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Koschier2017)
+		m_base->updateDMVelocity();
+	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Bender2019)
+		m_base->updateVMVelocity();
+}
+
+void StaticBoundarySimulator::reset()
+{
+	Simulation* sim = Simulation::getCurrent();
+	for (unsigned int i = 0; i < sim->numberOfBoundaryModels(); i++)
+	{
+		BoundaryModel* bm = sim->getBoundaryModel(i);
+		if (bm->getRigidBodyObject()->isDynamic() || bm->getRigidBodyObject()->isAnimated())
+		{
+			((StaticRigidBody*)bm->getRigidBodyObject())->reset();
+		}
+	}
+
+	if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Akinci2012)
+		m_base->updateBoundaryParticles(true);
+	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Koschier2017)
+		m_base->updateDMVelocity();
+	else if (sim->getBoundaryHandlingMethod() == BoundaryHandlingMethods::Bender2019)
+		m_base->updateVMVelocity();
 }

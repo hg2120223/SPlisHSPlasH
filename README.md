@@ -29,7 +29,7 @@ If you want to import partio files in Blender, try
 ## Build Instructions
 
 This project is based on [CMake](https://cmake.org/). Simply generate project, Makefiles, etc. using [CMake](https://cmake.org/) and compile the project with a compiler of your choice that supports C++11. The code was tested with the following configurations:
-- Windows 10 64-bit, CMake 3.11.2, Visual Studio 2017
+- Windows 10 64-bit, CMake 3.18.3, Visual Studio 2019
 - Debian 9 64-bit, CMake 3.12.3, GCC 6.3.0.
 
 Note: Please use a 64-bit target on a 64-bit operating system. 32-bit builds on a 64-bit OS are not supported.
@@ -50,6 +50,26 @@ splash
 splash --help
 ```
 
+#Ferrofluid Guide
+1. Ensure that OpenMP is installed. If on Ubuntu, run ```sudo apt-get install libomp-dev```
+2. Clone the repository ```git clone https://github.com/hg2120223/SPlisHSPlasH```
+3. Follow the instructions above to build the project using CMake
+4.  Setup a virtual environment for Python
+```
+python3 -m virtualenv venv --python=python3.7
+source venv/bin/activate
+```
+5. Build the project for Python
+```
+cd SPlisHSPlasH
+python setup.py bdist_wheel
+pip install -I build/dist/*.whl
+```
+6. Run the ferrofluid scene file
+```
+python3 pySPlisHSPlasH/examples/ferroscene.py 
+```
+Results will be stored in the "results" directory
 ## Documentation
 
 * [Documentation](https://splishsplash.readthedocs.io)
@@ -62,6 +82,7 @@ SPlisHSPlasH implements:
 * neighborhood search on CPU or GPU
 * supports vectorization using AVX
 * Python binding (thanks to Stefan Jeske)
+* supports embedded Python scripts
 * several implicit pressure solvers (WCSPH, PCISPH, PBF, IISPH, DFSPH, PF)
 * explicit and implicit viscosity methods
 * current surface tension approaches
@@ -76,10 +97,12 @@ SPlisHSPlasH implements:
 * a json-based scene file importer
 * automatic surface sampling
 * a tool for volume sampling of closed geometries
+* a tool to generate spray, foam and bubble particles in a postprocessing step 
 * partio file export of all particle data
 * VTK file export of all particle data (enables the data import in ParaView)
 * rigid body export
 * a Maya plugin to model and generate scene files 
+* a ParaView plugin to import particle data
 
 ## Pressure Solvers
 
@@ -91,6 +114,7 @@ The SPlisHSPlasH library implements the following pressure solvers:
 * Implicit incompressible SPH (IISPH)
 * Divergence-free smoothed particle hydrodynamics (DFSPH)
 * Projective Fluids (PF)
+* Implicit compressible SPH (ICSPH)
 
 ## Boundary Handling 
 
@@ -126,10 +150,9 @@ and the implicit methods of the following publications:
 The SPlisHSPlasH library implements the surface tension methods of the following publications: 
 
 * Markus Becker and Matthias Teschner. Weakly compressible SPH for free surface flows. In Proceedings of ACM SIGGRAPH/Eurographics Symposium on Computer Animation, 2007. Eurographics Association.
-
 * Nadir Akinci, Gizem Akinci, and Matthias Teschner. Versatile surface tension and adhesion for SPH fluids. ACM Trans. Graph., 32(6):182:1–182:8, 2013. 
-
 * Xiaowei He, Huamin Wang, Fengjun Zhang, Hongan Wang, Guoping Wang, and Kun Zhou, "Robust simulation of sparsely sampled thin features in SPH-based free surface flows", ACM Transactions on Graphics, 34(1), 2014.
+* F. Zorilla, M. Ritter, J. Sappl, W. Rauch, M. Harders, "Accelerating  Surface Tension Calculation in SPH via Particle Classification and Monte Carlo Integration", Computers 9, 23, 2020.
 
 ## Vorticity
 
@@ -162,7 +185,7 @@ The SPlisHSPlasH library implements the following publication to realize multi-p
 
 ## Screenshots
 
-|![](https://raw.githubusercontent.com/InteractiveComputerGraphics/SPlisHSPlasH/master/doc/images/SPlisHSPlasH2.jpg)|![](doc/images/SPlisHSPlasH1.jpg)|
+|![](https://raw.githubusercontent.com/InteractiveComputerGraphics/SPlisHSPlasH/master/doc/images/SPlisHSPlasH2.jpg)|![](https://raw.githubusercontent.com/InteractiveComputerGraphics/SPlisHSPlasH/master/doc/images/SPlisHSPlasH1.jpg)|
 |--|--|
 |![](https://raw.githubusercontent.com/InteractiveComputerGraphics/SPlisHSPlasH/master/doc/images/SPlisHSPlasH3.jpg)|![](https://raw.githubusercontent.com/InteractiveComputerGraphics/SPlisHSPlasH/master/doc/images/SPlisHSPlasH4.jpg)|
 
@@ -191,12 +214,15 @@ The following videos were generated using the SPlisHSPlasH library:
 * Jan Bender and Dan Koschier. Divergence-free smoothed particle hydrodynamics. In Proceedings of ACM SIGGRAPH / Eurographics Symposium on Computer Animation, 2015. ACM.
 * Jan Bender and Dan Koschier. Divergence-free SPH for incompressible and viscous fluids. IEEE Transactions on Visualization and Computer Graphics, 2017.
 * Jan Bender, Dan Koschier, Tassilo Kugelstadt and Marcel Weiler. A Micropolar Material Model for Turbulent SPH Fluids. In Proceedings of ACM SIGGRAPH / EUROGRAPHICS Symposium on Computer Animation, 2017
+* Jan Bender, Dan Koschier, Tassilo Kugelstadt and Marcel Weiler. Turbulent Micropolar SPH Fluids with Foam. IEEE Transactions on Visualization and Computer Graphics 25(6), 2019
 * Jan Bender, Tassilo Kugelstadt, Marcel Weiler, Dan Koschier, "Volume Maps: An Implicit Boundary Representation for SPH", ACM SIGGRAPH Conference on Motion, Interaction and Games, 2019
 * Jan Bender, Tassilo Kugelstadt, Marcel Weiler, Dan Koschier, "Implicit  Frictional Boundary Handling for SPH", IEEE Transactions on  Visualization and Computer Graphics, 2020
 * Jan Bender, Matthias Müller, Miguel A. Otaduy, Matthias Teschner, and Miles Macklin. A survey on position-based simulation methods in computer graphics. Computer Graphics Forum, 33(6):228–251, 2014.
 * Jan Bender, Matthias Müller, and Miles Macklin. Position-based simulation methods in computer graphics. In EUROGRAPHICS 2015 Tutorials. Eurographics Association, 2015.
 * Christoph Gissler, Stefan Band, Andreas Peer, Markus Ihmsen and Matthias Teschner. Approximate Air-Fluid Interactions for SPH. In Proceedings of Virtual Reality Interactions and Physical Simulations, 2017
+* C. Gissler, A. Henne, S. Band, A. Peer and M. Teschner. An Implicit Compressible SPH Solver for Snow Simulation, ACM Transactions on Graphics 39(4), 2020. 
 * Xiaowei He, Huamin Wang, Fengjun Zhang, Hongan Wang, Guoping Wang, and Kun Zhou. Robust simulation of sparsely sampled thin features in SPH-based free surface flows. ACM Trans. Graph., 34(1):7:1–7:9, December 2014. 
+* Markus Ihmsen, Nadir Akinci, Gizem Akinci, Matthias Teschner. Unified spray, foam and air bubbles for particle-based fluids. The Visual Computer 28(6), 2012
 * Markus Ihmsen, Jens Cornelis, Barbara Solenthaler, Christopher Horvath, and Matthias Teschner. Implicit incompressible SPH. IEEE Transactions on Visualization and Computer Graphics, 20(3):426–435, March 2014.
 * Markus Ihmsen, Jens Orthmann, Barbara Solenthaler, Andreas Kolb, and Matthias Teschner. SPH Fluids in Computer Graphics. In Eurographics 2014 - State of the Art Reports. The Eurographics Association, 2014. 
 * Dan Koschier and Jan Bender, "Density Maps for Improved SPH Boundary Handling", In Proceedings of ACM SIGGRAPH / EUROGRAPHICS Symposium on Computer Animation (SCA), 2017
@@ -211,5 +237,4 @@ The following videos were generated using the SPlisHSPlasH library:
 * Tetsuya Takahashi, Yoshinori Dobashi, Issei Fujishiro, Tomoyuki Nishita, and Ming C. Lin. Implicit Formulation for SPH-based Viscous Fluids. Computer Graphics Forum, 34, 2015.
 * Marcel Weiler, Dan Koschier and Jan Bender. Projective Fluids. Proceedings of the 9th International Conference on Motion in Games, ACM, 2016, 79-84
 * Marcel Weiler, Dan Koschier, Magnus Brand and Jan Bender. A Physically Consistent Implicit Viscosity Solver for SPH Fluids. Computer Graphics Forum (Eurographics), 37(2), 2018
-
-
+* F. Zorilla, M. Ritter, J. Sappl, W. Rauch, M. Harders, "Accelerating  Surface Tension Calculation in SPH via Particle Classification and Monte Carlo Integration", Computers 9, 23, 2020.
